@@ -1,0 +1,25 @@
+<Included>
+    <Decoders>
+        <MediaCodec name="c2.renesas.vp8.decoder" type="video/x-vnd.on2.vp8" >
+            <Alias name="OMX.RENESAS.VIDEO.DECODER.VP8" />
+            <Limit name="alignment" value="2x2" />
+            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="block-size" value="16x16" />
+            <Limit name="blocks-per-second" range="1-489600" />
+            <Limit name="bitrate" range="1-80000000" />
+            <Limit name="concurrent-instances" max="2" />
+            <Feature name="adaptive-playback" />
+        </MediaCodec>
+    </Decoders>
+    <Encoders>
+        <MediaCodec name="c2.renesas.vp8.encoder" type="video/x-vnd.on2.vp8" >
+            <Alias name="OMX.RENESAS.VIDEO.ENCODER.VP8" />
+            <Limit name="alignment" value="8x8" />
+            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="block-size" value="16x16" />
+            <Limit name="blocks-per-second" range="1-489600" />
+            <Limit name="concurrent-instances" max="2" />
+            <Limit name="bitrate" range="1-80000000" />
+        </MediaCodec>
+    </Encoders>
+</Included>

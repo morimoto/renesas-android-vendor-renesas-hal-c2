@@ -1,5 +1,5 @@
 /*
- * Copyright(C) 2015-2018 Renesas Electronics Corporation. All Rights Reserved.
+ * Copyright(C) 2015-2020 Renesas Electronics Corporation. All Rights Reserved.
  * RENESAS ELECTRONICS CONFIDENTIAL AND PROPRIETARY
  * This program must be used solely for the purpose for which
  * it was furnished by Renesas Electronics Corporation.
@@ -64,9 +64,10 @@ typedef struct {
 
 /* Signal Information */
 struct SignalInf {
-    OMX_U32         pendflg;
-    pthread_cond_t  cond;
-    pthread_mutex_t mutex;
+    OMX_U32            pendflg;
+    pthread_cond_t     cond;
+    pthread_condattr_t attr;
+    pthread_mutex_t    mutex;
 };
 
 /***************************************************************************/
@@ -791,7 +792,17 @@ OMX_ERRORTYPE OmxrCreateSignal(OMX_PTR *ppvSignalId, OMX_BOOL bSignaled)
 
     psSigInf->pendflg = 0;    /* no signal */
 
-    if (pthread_cond_init((pthread_cond_t*)&(psSigInf->cond), NULL) != 0) {
+    if (pthread_condattr_init((pthread_condattr_t*)&(psSigInf->attr))){
+        OMXR_LOGGER(OMXR_UTIL_LOG_LEVEL_ERROR, "%s: error: pthread_condattr_init failed.", strFunction);
+        return OMX_ErrorUndefined;
+    }
+
+    if (pthread_condattr_setclock((pthread_condattr_t*)&(psSigInf->attr), CLOCK_MONOTONIC) != 0) {
+        OMXR_LOGGER(OMXR_UTIL_LOG_LEVEL_ERROR, "%s: error: pthread_condattr_setclock failed.", strFunction);
+        return OMX_ErrorUndefined;
+    }
+
+    if (pthread_cond_init((pthread_cond_t*)&(psSigInf->cond), (pthread_condattr_t*)&(psSigInf->attr)) != 0) {
         OMXR_LOGGER(OMXR_UTIL_LOG_LEVEL_ERROR, "%s: error: pthread_cond_init failed.", strFunction);
         return OMX_ErrorUndefined;
     }
@@ -839,6 +850,7 @@ OMX_ERRORTYPE OmxrDestroySignal(OMX_PTR pvSignalId)
 
     (void)pthread_mutex_lock((pthread_mutex_t*)&(psSigInf->mutex));
 
+    (void)pthread_condattr_destroy((pthread_condattr_t*)&(psSigInf->attr));
     u32RetVal = (OMX_U32)pthread_cond_destroy((pthread_cond_t*)&(psSigInf->cond));
     if (u32RetVal != 0) {
         if (u32RetVal == EBUSY) { /* othre thread is sigwait. */

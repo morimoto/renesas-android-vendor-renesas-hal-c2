@@ -38,7 +38,7 @@ constexpr uint32_t MAX_PICTURE_HEIGHT = 1080u;
 constexpr unsigned MAX_CONCURRENT_INSTANCES = 2u;
 
 C2VendorComponentStore::C2VendorComponentStore()
-    : mReflector(std::make_shared<C2ReflectorHelper>()),
+    : mReflector{std::make_shared<C2ReflectorHelper>()},
       mOMXR_Core{std::make_shared<OMXR_Core>()},
       mInfos{
           {

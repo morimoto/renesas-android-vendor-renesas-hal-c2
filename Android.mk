@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Include only for Renesas ones.
+ifneq (,$(filter $(TARGET_PRODUCT),salvator ulcb kingfisher))
+
 # Decide what codecs should be included
 ifeq ($(TARGET_PRODUCT),salvator)
     # M3N
@@ -111,3 +114,5 @@ LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp9
 endif
 
 include $(BUILD_EXECUTABLE)
+
+endif # $(TARGET_PRODUCT) salvator ulcb kingfisher

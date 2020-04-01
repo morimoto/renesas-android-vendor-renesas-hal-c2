@@ -69,7 +69,9 @@ LOCAL_C_INCLUDES := \
     $(OMX_TOP)/include \
     hardware/renesas/hal/hwcomposer \
     system/core/libion/kernel-headers \
-    hardware/renesas/modules/vspm/vspm-module/files/vspm/include
+    hardware/renesas/modules/vspm/vspm-module/files/vspm/include \
+    $(TOP)/vendor/renesas/utils/mmngr/libmmngr/mmngr/include \
+    $(TOP)/hardware/renesas/modules/mmngr/mmngr_drv/mmngr/mmngr-module/files/mmngr/include
 
 LOCAL_SHARED_LIBRARIES := \
     android.hardware.media.c2@1.0 \
@@ -79,7 +81,8 @@ LOCAL_SHARED_LIBRARIES := \
     libbase \
     libhidlbase \
     libhardware \
-    libvspmif
+    libvspmif \
+    libmmngr
 
 LOCAL_CFLAGS := \
     -Wall \

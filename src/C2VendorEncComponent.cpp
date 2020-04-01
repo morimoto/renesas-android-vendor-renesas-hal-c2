@@ -25,6 +25,7 @@
 
 extern "C" {
 #include <vspm_public.h>
+#include <mmngr_user_public.h>
 }
 
 namespace android::hardware::media::c2::V1_0::renesas {
@@ -549,9 +550,7 @@ c2_status_t C2VendorEncComponent::vspmConvertRGBAToYUVAWithEmpty(
     OMX_BUFFERHEADERTYPE* const header) {
     uint64_t physAddr = 0u;
 
-    CHECK_EQ(gralloc_get_buffer_phys_addr(mGrallocDevice, handle->fd[0u],
-                                          &physAddr),
-             GRALLOC1_ERROR_NONE);
+    CHECK_EQ(mmngr_get_buffer_phys_addr(handle->fd[0u], &physAddr), R_MM_OK);
 
     unsigned short vspInputFormat = 0u;
     unsigned char vspInputSwap = 0u;

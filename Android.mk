@@ -68,7 +68,6 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/include \
     $(OMX_TOP)/include \
     hardware/renesas/hal/hwcomposer \
-    system/core/libion/kernel-headers \
     hardware/renesas/modules/vspm/vspm-module/files/vspm/include \
     $(TOP)/vendor/renesas/utils/mmngr/libmmngr/mmngr/include \
     $(TOP)/hardware/renesas/modules/mmngr/mmngr_drv/mmngr/mmngr-module/files/mmngr/include
@@ -82,7 +81,8 @@ LOCAL_SHARED_LIBRARIES := \
     libhidlbase \
     libhardware \
     libvspmif \
-    libmmngr
+    libmmngr \
+    libion
 
 LOCAL_CFLAGS := \
     -Wall \

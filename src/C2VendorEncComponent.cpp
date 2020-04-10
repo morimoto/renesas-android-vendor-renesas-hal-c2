@@ -257,7 +257,7 @@ c2_status_t C2VendorEncComponent::onProcessInput(
         return status;
     }
 
-    const C2ConstGraphicBlock& graphicBlock =
+    const C2ConstGraphicBlock graphicBlock =
         work->input.buffers.front()->data().graphicBlocks().front();
     const C2GraphicView view = graphicBlock.map().get();
     status = view.error();

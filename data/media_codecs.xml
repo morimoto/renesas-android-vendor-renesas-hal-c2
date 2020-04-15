@@ -18,7 +18,7 @@
         <MediaCodec name="c2.renesas.h263.decoder" type="video/3gpp">
             <Alias name="OMX.RENESAS.VIDEO.DECODER.H263" />
             <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="128x96" max="1920x1080" />
+            <Limit name="size" min="128x96" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="bitrate" range="1-80000000" />
@@ -28,7 +28,7 @@
         <MediaCodec name="c2.renesas.avc.decoder" type="video/avc">
             <Alias name="OMX.RENESAS.VIDEO.DECODER.H264" />
             <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="size" min="80x80" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="bitrate" range="1-80000000" />
@@ -38,7 +38,7 @@
         <MediaCodec name="c2.renesas.hevc.decoder" type="video/hevc">
             <Alias name="OMX.RENESAS.VIDEO.DECODER.H265" />
             <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="size" min="80x80" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="bitrate" range="1-80000000" />
@@ -48,7 +48,7 @@
         <MediaCodec name="c2.renesas.mpeg4.decoder" type="video/mp4v-es">
             <Alias name="OMX.RENESAS.VIDEO.DECODER.MPEG4" />
             <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="size" min="80x80" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="bitrate" range="1-80000000" />
@@ -60,7 +60,7 @@
         <MediaCodec name="c2.renesas.avc.encoder" type="video/avc" >
             <Alias name="OMX.RENESAS.VIDEO.ENCODER.H264" />
             <Limit name="alignment" value="8x8" />
-            <Limit name="size" min="80x80" max="1920x1080" />
+            <Limit name="size" min="80x80" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="concurrent-instances" max="2" />

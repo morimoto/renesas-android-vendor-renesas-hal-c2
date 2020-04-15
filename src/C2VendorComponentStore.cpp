@@ -31,7 +31,7 @@ constexpr android_pixel_format_t VENDOR_PIXEL_FORMAT = HAL_PIXEL_FORMAT_YV12;
 
 // NOTE: should be consistent with "size" entry in media_codecs.xml
 constexpr uint32_t MAX_PICTURE_WIDTH = 1920u;
-constexpr uint32_t MAX_PICTURE_HEIGHT = 1080u;
+constexpr uint32_t MAX_PICTURE_HEIGHT = 1088u;
 
 // NOTE: should be consistent with "concurrent-instances" entry in
 // media_codecs.xml

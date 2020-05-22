@@ -73,6 +73,10 @@ public:
 
     OMX_VIDEO_CODINGTYPE getOMXCodingType() const { return mOMXCodingType; }
 
+    const C2ProfileLevelStruct& getProfileLevel() const {
+        return *mProfileLevel;
+    }
+
     uint32_t getCodedFrameRate() const {
         return static_cast<uint32_t>(mCodedFrameRate->value);
     }

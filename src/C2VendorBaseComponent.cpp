@@ -630,6 +630,21 @@ OMX_ERRORTYPE C2VendorBaseComponent::setPortDef(
     return omxError;
 }
 
+void C2VendorBaseComponent::querySupportedProfileLevels(
+    PortIndex portIndex) const {
+    OMX_VIDEO_PARAM_PROFILELEVELTYPE profileLevel;
+    OMXR_Adapter::InitOMXParam(profileLevel);
+    profileLevel.nPortIndex = portIndex;
+
+    for (profileLevel.nProfileIndex = 0u;
+         mOMXR_Adapter->getParam(OMX_IndexParamVideoProfileLevelQuerySupported,
+                                 profileLevel) == OMX_ErrorNone;
+         profileLevel.nProfileIndex++) {
+        R_LOG(INFO) << "#" << profileLevel.nProfileIndex << ": "
+                     << profileLevel.eProfile << ", " << profileLevel.eLevel;
+    }
+}
+
 void C2VendorBaseComponent::processConfigUpdate(
     std::vector<std::unique_ptr<C2Param>>& configUpdate) {
     if (configUpdate.empty()) {

@@ -23,7 +23,6 @@
 #include <set>
 
 #include "C2VendorComponentInferface.h"
-#include "OMXR_Extension_android.h"
 
 class C2ReflectorHelper;
 

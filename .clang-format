@@ -1,0 +1,15 @@
+BasedOnStyle: Google
+
+AccessModifierOffset: -4
+AlignOperands: false
+AllowShortFunctionsOnASingleLine: Inline
+AlwaysBreakBeforeMultilineStrings: false
+ColumnLimit: 80
+CommentPragmas: NOLINT:.*
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+IndentWidth: 4
+PenaltyBreakBeforeFirstCallParameter: 100000
+SpacesBeforeTrailingComments: 1
+BinPackParameters: false
+IndentCaseLabels: false

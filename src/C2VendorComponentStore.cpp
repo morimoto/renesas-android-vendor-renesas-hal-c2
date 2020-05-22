@@ -24,6 +24,7 @@
 #include "C2VendorEncComponent.h"
 #include "OMXR_Core.h"
 #include "OMXR_Debug.h"
+#include "OMXR_Extension_android.h"
 
 namespace android::hardware::media::c2::V1_0::renesas {
 
@@ -68,7 +69,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               MEDIA_MIMETYPE_VIDEO_AVC,
               {80u, 80u},
               {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
-              PROFILE_AVC_CONSTRAINED_BASELINE,
+              PROFILE_AVC_BASELINE,
               LEVEL_AVC_5_1,
               {
                   PROFILE_AVC_BASELINE,
@@ -188,10 +189,12 @@ C2VendorComponentStore::C2VendorComponentStore()
               MEDIA_MIMETYPE_VIDEO_AVC,
               {80u, 80u},
               {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
-              PROFILE_AVC_MAIN,
+              PROFILE_AVC_BASELINE,
               LEVEL_AVC_5_1,
               {
+                  PROFILE_AVC_BASELINE,
                   PROFILE_AVC_MAIN,
+                  PROFILE_AVC_HIGH,
               },
               {
                   LEVEL_AVC_1,

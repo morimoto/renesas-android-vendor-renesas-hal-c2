@@ -48,6 +48,11 @@ private:
         OMX_BUFFERHEADERTYPE* const header;
     };
 
+    static bool MapAVCProfileLevel(C2Config::profile_t c2Profile,
+                                   C2Config::level_t c2Level,
+                                   OMX_VIDEO_AVCPROFILETYPE& omxProfile,
+                                   OMX_VIDEO_AVCLEVELTYPE& omxLevel);
+
     static void SWConvertRGBAToYUVA(const C2GraphicView& view,
                                     int pixelFormat,
                                     OMX_BUFFERHEADERTYPE* const header);
@@ -64,6 +69,10 @@ private:
 
     void initGralloc();
     void deinitGralloc();
+
+    void setAVCEncoderProfileLevel(const OMXR_Adapter& omxrAdapter,
+                                   C2Config::profile_t c2Profile,
+                                   C2Config::level_t c2Level) const;
 
     c2_status_t submitInput(const C2GraphicView& view,
                             const IMG_native_handle_t* const handle,

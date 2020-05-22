@@ -130,8 +130,7 @@ bool C2VendorDecComponent::onConfigure(const OMXR_Adapter& omxrAdapter) {
                  << pictureSize.height << ", maxPictureSize "
                  << maxPictureSize.width << "x" << maxPictureSize.height;
 
-    const OMX_VIDEO_CODINGTYPE inputCoding =
-        static_cast<OMX_VIDEO_CODINGTYPE>(omxCodingType);
+    const OMX_VIDEO_CODINGTYPE inputCoding = omxCodingType;
     constexpr OMX_COLOR_FORMATTYPE inputColFormat = OMX_COLOR_FormatUnused;
     constexpr OMX_VIDEO_CODINGTYPE outputCoding = OMX_VIDEO_CodingUnused;
     constexpr OMX_COLOR_FORMATTYPE outputColFormat = OMXDecColorFormat;

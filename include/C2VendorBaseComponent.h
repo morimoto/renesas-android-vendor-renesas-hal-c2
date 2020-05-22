@@ -245,6 +245,8 @@ protected:
                              OMX_VIDEO_CODINGTYPE coding,
                              OMX_COLOR_FORMATTYPE colorFormat) const;
 
+    void querySupportedProfileLevels(PortIndex portIndex) const;
+
     void processConfigUpdate(
         std::vector<std::unique_ptr<C2Param>>& configUpdate);
 

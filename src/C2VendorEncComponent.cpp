@@ -21,6 +21,7 @@
 
 #include "C2VendorComponentInferface.h"
 #include "C2VendorDebug.h"
+#include "OMXR_Adapter.h"
 #include "OMXR_Debug.h"
 
 extern "C" {
@@ -185,8 +186,8 @@ bool C2VendorEncComponent::onStateSet(OMX_STATETYPE omxState) {
     return C2VendorBaseComponent::onStateSet(omxState);
 }
 
-bool C2VendorEncComponent::onConfigure(
-    const OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED) {
+bool C2VendorEncComponent::onConfigure(const OMXR_Adapter& omxrAdapter) {
+    const C2ProfileLevelStruct& profileLevel = mIntfImpl->getProfileLevel();
     const uint32_t bitrate = mIntfImpl->getBitrate();
     const uint32_t frameRate = mIntfImpl->getCodedFrameRate();
     const OMX_VIDEO_CODINGTYPE omxCodingType = mIntfImpl->getOMXCodingType();
@@ -194,29 +195,47 @@ bool C2VendorEncComponent::onConfigure(
     const C2PictureSizeStruct& pictureSize = mIntfImpl->getPictureSize();
 
     R_LOG(DEBUG) << "Got params from intfImpl: "
-                 << "bitrate " << bitrate << ", frameRate " << frameRate
-                 << ", omxCodingType " << omxCodingType << ", pixelFormat "
-                 << pixelFormat << ", pictureSize " << pictureSize.width << "x"
+                 << "profile " << profileLevel.profile << ", level "
+                 << profileLevel.level << ", bitrate " << bitrate
+                 << ", frameRate " << frameRate << ", omxCodingType "
+                 << omxCodingType << ", pixelFormat " << pixelFormat
+                 << ", pictureSize " << pictureSize.width << "x"
                  << pictureSize.height;
 
     constexpr OMX_VIDEO_CODINGTYPE inputCoding = OMX_VIDEO_CodingUnused;
     constexpr OMX_COLOR_FORMATTYPE inputColFormat = OMXEncColorFormat;
-    const OMX_VIDEO_CODINGTYPE outputCoding =
-        static_cast<OMX_VIDEO_CODINGTYPE>(omxCodingType);
+    const OMX_VIDEO_CODINGTYPE outputCoding = omxCodingType;
     constexpr OMX_COLOR_FORMATTYPE outputColFormat = OMX_COLOR_FormatUnused;
     const uint32_t width = pictureSize.width;
     const uint32_t height = pictureSize.height;
 
     R_LOG(DEBUG) << "OMX color format " << inputColFormat;
 
-    return setPortFormat(InputPortIndex, frameRate, inputCoding,
-                         inputColFormat) == OMX_ErrorNone &&
+#ifdef R_LOG_VERBOSITY
+    querySupportedProfileLevels(OutputPortIndex);
+#endif
+
+    const bool res = setPortFormat(InputPortIndex, frameRate, inputCoding,
+                                   inputColFormat) == OMX_ErrorNone &&
         setPortFormat(OutputPortIndex, frameRate, outputCoding,
                       outputColFormat) == OMX_ErrorNone &&
         setPortDef(InputPortIndex, width, height, bitrate, frameRate,
                    inputCoding, inputColFormat) == OMX_ErrorNone &&
         setPortDef(OutputPortIndex, width, height, bitrate, frameRate,
                    outputCoding, outputColFormat) == OMX_ErrorNone;
+
+    if (res) {
+        switch (outputCoding) {
+        case OMX_VIDEO_CodingAVC:
+            setAVCEncoderProfileLevel(omxrAdapter, profileLevel.profile,
+                                      profileLevel.level);
+            break;
+        default:
+            break;
+        }
+    }
+
+    return res;
 }
 
 c2_status_t C2VendorEncComponent::onProcessInput(
@@ -454,6 +473,66 @@ void C2VendorEncComponent::onOutputDone(const ExtendedBufferData& data) {
     }
 }
 
+bool C2VendorEncComponent::MapAVCProfileLevel(
+    C2Config::profile_t c2Profile,
+    C2Config::level_t c2Level,
+    OMX_VIDEO_AVCPROFILETYPE& omxProfile,
+    OMX_VIDEO_AVCLEVELTYPE& omxLevel) {
+    constexpr std::pair<C2Config::profile_t, OMX_VIDEO_AVCPROFILETYPE>
+        avcProfileMap[] = {
+            {PROFILE_AVC_BASELINE, OMX_VIDEO_AVCProfileBaseline},
+            {PROFILE_AVC_MAIN, OMX_VIDEO_AVCProfileMain},
+            {PROFILE_AVC_HIGH, OMX_VIDEO_AVCProfileHigh},
+        };
+
+    constexpr std::pair<C2Config::level_t, OMX_VIDEO_AVCLEVELTYPE>
+        avcLevelMap[] = {
+            {LEVEL_AVC_1, OMX_VIDEO_AVCLevel1},
+            {LEVEL_AVC_1B, OMX_VIDEO_AVCLevel1b},
+            {LEVEL_AVC_1_1, OMX_VIDEO_AVCLevel11},
+            {LEVEL_AVC_1_2, OMX_VIDEO_AVCLevel12},
+            {LEVEL_AVC_1_3, OMX_VIDEO_AVCLevel13},
+            {LEVEL_AVC_2, OMX_VIDEO_AVCLevel2},
+            {LEVEL_AVC_2_1, OMX_VIDEO_AVCLevel21},
+            {LEVEL_AVC_2_2, OMX_VIDEO_AVCLevel22},
+            {LEVEL_AVC_3, OMX_VIDEO_AVCLevel3},
+            {LEVEL_AVC_3_1, OMX_VIDEO_AVCLevel31},
+            {LEVEL_AVC_3_2, OMX_VIDEO_AVCLevel32},
+            {LEVEL_AVC_4, OMX_VIDEO_AVCLevel4},
+            {LEVEL_AVC_4_1, OMX_VIDEO_AVCLevel41},
+            {LEVEL_AVC_4_2, OMX_VIDEO_AVCLevel42},
+            {LEVEL_AVC_5, OMX_VIDEO_AVCLevel5},
+            {LEVEL_AVC_5_1, OMX_VIDEO_AVCLevel51},
+        };
+
+    const auto avcProfileIt =
+        std::find_if(std::begin(avcProfileMap), std::end(avcProfileMap),
+                     [c2Profile](const auto& p) {
+                         return p.first == c2Profile;
+                     });
+
+    if (avcProfileIt == std::end(avcProfileMap)) {
+        R_LOG(ERROR) << "C2 profile " << c2Profile << " is not supported";
+        return false;
+    }
+
+    const auto avcLevelIt =
+        std::find_if(std::begin(avcLevelMap), std::end(avcLevelMap),
+                     [c2Level](const auto& p) { return p.first == c2Level; });
+
+    if (avcLevelIt == std::end(avcLevelMap)) {
+        R_LOG(ERROR) << "C2 level " << c2Level << " is not supported";
+        return false;
+    }
+
+    omxProfile = avcProfileIt->second;
+    omxLevel = avcLevelIt->second;
+
+    R_LOG(DEBUG) << "OMX profile " << omxProfile << ", level " << omxLevel;
+
+    return true;
+}
+
 void C2VendorEncComponent::SWConvertRGBAToYUVA(
     const C2GraphicView& view,
     int pixelFormat,
@@ -542,6 +621,48 @@ void C2VendorEncComponent::initVspm() {
 void C2VendorEncComponent::deinitVspm() {
     if (mVspmHandle != nullptr) {
         CHECK_EQ(vspm_quit_driver(mVspmHandle), R_VSPM_OK);
+    }
+}
+
+void C2VendorEncComponent::setAVCEncoderProfileLevel(
+    const OMXR_Adapter& omxrAdapter,
+    C2Config::profile_t c2Profile,
+    C2Config::level_t c2Level) const {
+    OMX_VIDEO_PARAM_AVCTYPE avcType;
+
+    OMX_ERRORTYPE omxError =
+        omxrAdapter.getPortParam(OutputPortIndex, OMX_IndexParamVideoAvc,
+                                 avcType);
+
+    if (omxError != OMX_ErrorNone) {
+        R_LOG(ERROR) << "Failed to get avc type, " << omxError;
+        return;
+    }
+
+    R_LOG(DEBUG) << "Got avc type: "
+                 << "sliceHeaderSpacing " << avcType.nSliceHeaderSpacing
+                 << ", frames: B " << avcType.nBFrames << ", Ref "
+                 << avcType.nRefFrames << ", P " << avcType.nPFrames
+                 << ", profile " << avcType.eProfile << ", level "
+                 << avcType.eLevel << ", loopFilterMode "
+                 << avcType.eLoopFilterMode;
+
+    if (!MapAVCProfileLevel(c2Profile, c2Level, avcType.eProfile,
+                            avcType.eLevel)) {
+        return;
+    }
+
+    if (avcType.eProfile != OMX_VIDEO_AVCProfileBaseline) {
+        // Recomended setting for FHD resolution with B-frame
+        avcType.nBFrames = 1;
+        avcType.nRefFrames = 2;
+        avcType.nPFrames = 10;
+    }
+
+    omxError = omxrAdapter.setParam(OMX_IndexParamVideoAvc, avcType);
+
+    if (omxError != OMX_ErrorNone) {
+        R_LOG(ERROR) << "Failed to set avc type, " << omxError;
     }
 }
 

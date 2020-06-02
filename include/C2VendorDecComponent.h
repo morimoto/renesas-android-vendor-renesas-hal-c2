@@ -33,12 +33,12 @@ public:
 
 protected:
     bool onStateSet(OMX_STATETYPE omxState) final;
-    bool onConfigure(OMXR_Adapter& omxrAdapter) final;
+    bool onConfigure(const OMXR_Adapter& omxrAdapter) final;
     c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
                                OMX_BUFFERHEADERTYPE* const header,
                                bool fromDequeue) final;
     ExtendedBufferData onPreprocessOutput(
-        OMXR_Adapter& omxrAdapter,
+        const OMXR_Adapter& omxrAdapter,
         OMX_BUFFERHEADERTYPE* const header) const final;
     void onOutputDone(const ExtendedBufferData& data) final;
 
@@ -49,10 +49,6 @@ private:
         OMX_U32 transfer;
         OMX_U32 matrixCoeffs;
     };
-
-    static OMX_ERRORTYPE ForceMaxDecodeCap(OMXR_Adapter& omxrAdapter,
-                                           OMX_U32 maxWidth,
-                                           OMX_U32 maxHeight);
 
     static constexpr void GetAVCVUIColorAspects(
         const OMXR_MC_VIDEO_CONFIG_SYNTAX_INFOTYPE& syntaxInfoConfig,
@@ -66,8 +62,12 @@ private:
     static constexpr void ConvertVUIToC2ColorAspects(
         const VUIColorAspects& vuiAspects, C2ColorAspectsStruct& aspects);
 
-    bool shouldEnforceMaxDecodeCap(OMX_VIDEO_CODINGTYPE omxCodingType) const;
-    void retrieveColorAspects(OMXR_Adapter& omxrAdapter,
+    bool forceMaxDecodeCapIfNeeded(const OMXR_Adapter& omxrAdapter,
+                                   OMX_VIDEO_CODINGTYPE omxCodingType,
+                                   uint32_t maxPictureWidth,
+                                   uint32_t maxPictureHeight);
+
+    void retrieveColorAspects(const OMXR_Adapter& omxrAdapter,
                               C2ColorAspectsStruct& aspects) const;
     void verifyColorAspects(const C2ColorAspectsStruct& aspects,
                             C2Buffer& buffer);
@@ -82,7 +82,7 @@ private:
 
     OMX_U32 mSyntaxIndex;
     decltype(&GetAVCVUIColorAspects) mGetVUIColorAspectsFunc;
-    std::function<void(OMXR_Adapter&, C2ColorAspectsStruct&)>
+    std::function<void(const OMXR_Adapter&, C2ColorAspectsStruct&)>
         mRetrieveColorAspectsFunc;
     std::function<void(const C2ColorAspectsStruct&, C2Buffer&)>
         mVerifyColorAspectsFunc;

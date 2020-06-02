@@ -35,7 +35,7 @@ public:
 protected:
     void onExtensionMsg(const Message& msg) final;
     bool onStateSet(OMX_STATETYPE omxState) final;
-    bool onConfigure(OMXR_Adapter& omxrAdapter) final;
+    bool onConfigure(const OMXR_Adapter& omxrAdapter) final;
     c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
                                OMX_BUFFERHEADERTYPE* const header,
                                bool fromDequeuex);

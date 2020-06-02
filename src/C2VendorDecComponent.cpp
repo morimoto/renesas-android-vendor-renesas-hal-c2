@@ -115,7 +115,7 @@ bool C2VendorDecComponent::onStateSet(OMX_STATETYPE omxState) {
     return C2VendorBaseComponent::onStateSet(omxState);
 }
 
-bool C2VendorDecComponent::onConfigure(OMXR_Adapter& omxrAdapter) {
+bool C2VendorDecComponent::onConfigure(const OMXR_Adapter& omxrAdapter) {
     const uint32_t bitrate = mIntfImpl->getBitrate();
     const uint32_t frameRate = mIntfImpl->getCodedFrameRate();
     const OMX_VIDEO_CODINGTYPE omxCodingType = mIntfImpl->getOMXCodingType();
@@ -156,25 +156,9 @@ bool C2VendorDecComponent::onConfigure(OMXR_Adapter& omxrAdapter) {
         return false;
     }
 
-    // HACK: force enlarged maxDecCap in case of:
-    // - current resolution is minimal for appropriate codecs;
-    // - max picture size was presented.
-    if (shouldEnforceMaxDecodeCap(omxCodingType) ||
-        maxPictureSize.width != 0u || maxPictureSize.height != 0u) {
-        if (maxPictureSize.width > FallbackAdaptiveWidth ||
-            maxPictureSize.height > FallbackAdaptiveHeight) {
-            mBlockWidth = maxPictureSize.width;
-            mBlockHeight = maxPictureSize.height;
-        } else {
-            mBlockWidth = FallbackAdaptiveWidth;
-            mBlockHeight = FallbackAdaptiveHeight;
-        }
-
-        if (ForceMaxDecodeCap(omxrAdapter, mBlockWidth, mBlockHeight) !=
-            OMX_ErrorNone) {
-            return false;
-        }
-    } else {
+    if (!forceMaxDecodeCapIfNeeded(omxrAdapter, omxCodingType,
+                                   maxPictureSize.width,
+                                   maxPictureSize.height)) {
         mBlockWidth = mCropWidth;
         mBlockHeight = mCropHeight;
     }
@@ -267,7 +251,7 @@ c2_status_t C2VendorDecComponent::onProcessInput(
 
 C2VendorBaseComponent::ExtendedBufferData
 C2VendorDecComponent::onPreprocessOutput(
-    OMXR_Adapter& omxrAdapter, OMX_BUFFERHEADERTYPE* const header) const {
+    const OMXR_Adapter& omxrAdapter, OMX_BUFFERHEADERTYPE* const header) const {
     if (header->nFilledLen == 0u) {
         return C2VendorBaseComponent::onPreprocessOutput(omxrAdapter, header);
     }
@@ -432,9 +416,89 @@ void C2VendorDecComponent::onOutputDone(const ExtendedBufferData& data) {
     }
 }
 
-OMX_ERRORTYPE C2VendorDecComponent::ForceMaxDecodeCap(OMXR_Adapter& omxrAdapter,
-                                                      OMX_U32 maxWidth,
-                                                      OMX_U32 maxHeight) {
+bool C2VendorDecComponent::forceMaxDecodeCapIfNeeded(
+    const OMXR_Adapter& omxrAdapter,
+    OMX_VIDEO_CODINGTYPE omxCodingType,
+    uint32_t maxPictureWidth,
+    uint32_t maxPictureHeight) {
+    constexpr OMX_VIDEO_CODINGTYPE mEnforcingCodingTypes[] = {
+        OMX_VIDEO_CodingAVC,
+        OMX_VIDEO_CodingHEVC,
+        OMX_VIDEO_CodingVP8,
+        OMX_VIDEO_CodingVP9,
+    };
+
+    if (std::find(std::cbegin(mEnforcingCodingTypes),
+                  std::cend(mEnforcingCodingTypes),
+                  omxCodingType) == std::cend(mEnforcingCodingTypes)) {
+        R_LOG(DEBUG) << "There's no need to enforce max decode cap for "
+                     << omxCodingType;
+        return false;
+    }
+
+    C2StreamPictureSizeInfo::output pictureSize;
+
+    CHECK_EQ(mIntfImpl->query({&pictureSize}, {}, C2_MAY_BLOCK, {}), C2_OK);
+
+    const uint32_t curWidth = pictureSize.width;
+    const uint32_t curHeight = pictureSize.height;
+
+    R_LOG(DEBUG) << "Current picture size: " << curWidth << "x" << curHeight;
+
+    std::vector<C2FieldSupportedValuesQuery> fields = {
+        C2FieldSupportedValuesQuery::Possible(
+            C2ParamField::Make(pictureSize, pictureSize.width)),
+        C2FieldSupportedValuesQuery::Possible(
+            C2ParamField::Make(pictureSize, pictureSize.height)),
+    };
+
+    CHECK_EQ(mIntfImpl->querySupportedValues(fields, C2_MAY_BLOCK), C2_OK);
+
+    C2FieldSupportedValuesQuery& widthQuery = fields[0];
+    C2FieldSupportedValuesQuery& heightQuery = fields[1];
+
+    CHECK_EQ(widthQuery.status, C2_OK);
+    CHECK_EQ(heightQuery.status, C2_OK);
+
+    C2FieldSupportedValues& widthFsv = widthQuery.values;
+    C2FieldSupportedValues& heightFsv = heightQuery.values;
+
+    CHECK_EQ(widthFsv.type, C2FieldSupportedValues::RANGE);
+    CHECK_EQ(heightFsv.type, C2FieldSupportedValues::RANGE);
+
+    const uint32_t minWidth = widthFsv.range.min.ref<uint32_t>();
+    const uint32_t minHeight = heightFsv.range.min.ref<uint32_t>();
+
+    R_LOG(DEBUG) << "Min supported picture size: " << minWidth << "x"
+                 << minHeight;
+
+    // HACK: force enlarged max decode capability in the following cases:
+    // - VP9 and HAL_C2_VENDOR_ENABLE_SUPPORTING_VP9_REFERENCE_SCALING is
+    // defined;
+    // - max picture size was presented;
+    // - current resolution is minimal for appropriate codecs.
+#ifdef HAL_C2_VENDOR_ENABLE_SUPPORTING_VP9_REFERENCE_SCALING
+    if (omxCodingType == OMX_VIDEO_CodingVP9) {
+        R_LOG(DEBUG) << "VP9 reference scaling feature is enabled";
+
+        mBlockWidth = maxPictureWidth = widthFsv.range.max.ref<uint32_t>();
+        mBlockHeight = maxPictureHeight = heightFsv.range.max.ref<uint32_t>();
+    } else
+#endif
+        if (maxPictureWidth != 0u || maxPictureHeight != 0u ||
+            (curWidth == minWidth && curHeight == minHeight)) {
+        if (maxPictureWidth > FallbackAdaptiveWidth ||
+            maxPictureHeight > FallbackAdaptiveHeight) {
+            mBlockWidth = maxPictureWidth;
+            mBlockHeight = maxPictureHeight;
+        } else {
+            mBlockWidth = FallbackAdaptiveWidth;
+            mBlockHeight = FallbackAdaptiveHeight;
+        }
+    } else {
+        return false;
+    }
+
     OMXR_MC_VIDEO_PARAM_MAXIMUM_DECODE_CAPABILITYTYPE maxDecCap;
     constexpr OMX_INDEXTYPE maxDecCapIndex = static_cast<OMX_INDEXTYPE>(
         OMXR_MC_IndexParamVideoMaximumDecodeCapability);
@@ -444,24 +508,26 @@ OMX_ERRORTYPE C2VendorDecComponent::ForceMaxDecodeCap(OMXR_Adapter& omxrAdapter,
 
     if (omxError != OMX_ErrorNone) {
         R_LOG(ERROR) << "Failed to get max decode cap, " << omxError;
-        return omxError;
+        return false;
     }
 
     R_LOG(DEBUG) << "Previous decode cap " << maxDecCap.nMaxDecodedWidth << "x"
                  << maxDecCap.nMaxDecodedHeight << ", enabled "
-                 << maxDecCap.bForceEnable;
+                 << maxDecCap.bForceEnable << ", requested " << maxPictureWidth
+                 << "x" << maxPictureHeight;
 
     maxDecCap.bForceEnable = OMX_TRUE;
-    maxDecCap.nMaxDecodedWidth = maxWidth;
-    maxDecCap.nMaxDecodedHeight = maxHeight;
+    maxDecCap.nMaxDecodedWidth = maxPictureWidth;
+    maxDecCap.nMaxDecodedHeight = maxPictureHeight;
 
     omxError = omxrAdapter.setParam(maxDecCapIndex, maxDecCap);
 
     if (omxError != OMX_ErrorNone) {
         R_LOG(ERROR) << "Failed to set max decode cap, " << omxError;
+        return false;
     }
 
-    return omxError;
+    return true;
 }
 
 constexpr void C2VendorDecComponent::GetAVCVUIColorAspects(
@@ -545,63 +611,8 @@ constexpr void C2VendorDecComponent::ConvertVUIToC2ColorAspects(
     aspects.matrix = GetValueByIndex(vuiAspects.matrixCoeffs, matrixMap);
 }
 
-bool C2VendorDecComponent::shouldEnforceMaxDecodeCap(
-    OMX_VIDEO_CODINGTYPE omxCodingType) const {
-    constexpr OMX_VIDEO_CODINGTYPE mEnforcingCodingTypes[] = {
-        OMX_VIDEO_CodingAVC,
-        OMX_VIDEO_CodingHEVC,
-        OMX_VIDEO_CodingVP8,
-        OMX_VIDEO_CodingVP9,
-    };
-
-    if (std::find(std::cbegin(mEnforcingCodingTypes),
-                  std::cend(mEnforcingCodingTypes),
-                  omxCodingType) == std::cend(mEnforcingCodingTypes)) {
-        R_LOG(DEBUG) << "There's no need to enforce max decode cap for "
-                     << omxCodingType;
-        return false;
-    }
-
-    C2StreamPictureSizeInfo::output pictureSize;
-
-    CHECK_EQ(mIntfImpl->query({&pictureSize}, {}, C2_MAY_BLOCK, {}), C2_OK);
-
-    const uint32_t curWidth = pictureSize.width;
-    const uint32_t curHeight = pictureSize.height;
-
-    R_LOG(DEBUG) << "Current picturSize: " << curWidth << "x" << curHeight;
-
-    std::vector<C2FieldSupportedValuesQuery> fields = {
-        C2FieldSupportedValuesQuery::Possible(
-            C2ParamField::Make(pictureSize, pictureSize.width)),
-        C2FieldSupportedValuesQuery::Possible(
-            C2ParamField::Make(pictureSize, pictureSize.height)),
-    };
-
-    CHECK_EQ(mIntfImpl->querySupportedValues(fields, C2_MAY_BLOCK), C2_OK);
-
-    C2FieldSupportedValuesQuery& widthQuery = fields[0];
-    C2FieldSupportedValuesQuery& heightQuery = fields[1];
-
-    CHECK_EQ(widthQuery.status, C2_OK);
-    CHECK_EQ(heightQuery.status, C2_OK);
-
-    C2FieldSupportedValues& widthFsv = widthQuery.values;
-    C2FieldSupportedValues& heightFsv = heightQuery.values;
-
-    CHECK_EQ(widthFsv.type, C2FieldSupportedValues::RANGE);
-    CHECK_EQ(heightFsv.type, C2FieldSupportedValues::RANGE);
-
-    const uint32_t minWidth = widthFsv.range.min.ref<uint32_t>();
-    const uint32_t minHeight = heightFsv.range.min.ref<uint32_t>();
-
-    R_LOG(DEBUG) << "Min pictureSize: " << minWidth << "x" << minHeight;
-
-    return curWidth == minWidth && curHeight == minHeight;
-}
-
 void C2VendorDecComponent::retrieveColorAspects(
-    OMXR_Adapter& omxrAdapter, C2ColorAspectsStruct& aspects) const {
+    const OMXR_Adapter& omxrAdapter, C2ColorAspectsStruct& aspects) const {
     OMXR_MC_VIDEO_CONFIG_SYNTAX_INFOTYPE infoConfig;
     OMXR_Adapter::InitOMXParam(infoConfig);
     infoConfig.nPortIndex = OutputPortIndex;

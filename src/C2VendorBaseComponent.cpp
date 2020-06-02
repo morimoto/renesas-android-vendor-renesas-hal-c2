@@ -525,18 +525,6 @@ bool C2VendorBaseComponent::onStateSet(OMX_STATETYPE omxState) {
     return true;
 }
 
-c2_status_t C2VendorBaseComponent::onInputDone(
-    const BufferData& data ATTRIBUTE_UNUSED) {
-    return C2_OMITTED;
-}
-
-C2VendorBaseComponent::ExtendedBufferData
-C2VendorBaseComponent::onPreprocessOutput(
-    OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED,
-    OMX_BUFFERHEADERTYPE* const header) const {
-    return {header};
-}
-
 template <bool printOnError>
 bool C2VendorBaseComponent::checkState(ADAPTER_STATE expected) const {
     if (mAdapterState != expected) {

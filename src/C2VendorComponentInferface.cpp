@@ -72,8 +72,7 @@ IntfImpl::IntfImpl(const std::shared_ptr<C2ReflectorHelper>& reflector,
     : C2InterfaceHelper{reflector},
       mC2Name{info.c2Name},
       mOMXName{info.omxName},
-      mOMXCodingType{info.omxCodingType},
-      mMinSize{info.minSize} {
+      mOMXCodingType{info.omxCodingType} {
     setDerivedInstance(this);
 
     constexpr C2Component::domain_t domain = C2Component::DOMAIN_VIDEO;

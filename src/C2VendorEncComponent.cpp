@@ -24,8 +24,8 @@
 #include "OMXR_Debug.h"
 
 extern "C" {
-#include <vspm_public.h>
 #include <mmngr_user_public.h>
+#include <vspm_public.h>
 }
 
 namespace android::hardware::media::c2::V1_0::renesas {
@@ -186,7 +186,7 @@ bool C2VendorEncComponent::onStateSet(OMX_STATETYPE omxState) {
 }
 
 bool C2VendorEncComponent::onConfigure(
-    OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED) {
+    const OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED) {
     const uint32_t bitrate = mIntfImpl->getBitrate();
     const uint32_t frameRate = mIntfImpl->getCodedFrameRate();
     const OMX_VIDEO_CODINGTYPE omxCodingType = mIntfImpl->getOMXCodingType();

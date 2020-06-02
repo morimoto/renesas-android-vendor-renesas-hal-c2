@@ -79,10 +79,6 @@ public:
 
     uint32_t getBitrate() const { return mBitrate->value; }
 
-    const C2PictureSizeStruct& getDefaultPictureSize() const {
-        return mMinSize;
-    }
-
     const C2PictureSizeStruct& getPictureSize() const { return *mSize; }
 
     uint32_t getPixelFormat() const { return mPixelFormat->value; }
@@ -102,8 +98,6 @@ private:
     const C2String mC2Name;
     const C2String mOMXName;
     const OMX_VIDEO_CODINGTYPE mOMXCodingType;
-
-    const C2PictureSizeStruct mMinSize;
 
     std::shared_ptr<C2ComponentKindSetting> mKind;
     std::shared_ptr<C2ComponentDomainSetting> mDomain;

@@ -205,13 +205,20 @@ protected:
     // Methods used EXCLUSIVELY by component thread
     virtual void onExtensionMsg(const Message& msg);
     virtual bool onStateSet(OMX_STATETYPE omxState);
-    virtual bool onConfigure(OMXR_Adapter& omxrAdapter) = 0;
+    virtual bool onConfigure(const OMXR_Adapter& omxrAdapter) = 0;
     virtual c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
                                        OMX_BUFFERHEADERTYPE* const header,
                                        bool fromDequeue) = 0;
-    virtual c2_status_t onInputDone(const BufferData& data);
+    virtual c2_status_t onInputDone(const BufferData& data ATTRIBUTE_UNUSED) {
+        return C2_OMITTED;
+    }
+
     virtual ExtendedBufferData onPreprocessOutput(
-        OMXR_Adapter& omxrAdapter, OMX_BUFFERHEADERTYPE* const header) const;
+        const OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED,
+        OMX_BUFFERHEADERTYPE* const header) const {
+        return {header};
+    }
+
     virtual void onOutputDone(const ExtendedBufferData& data) = 0;
 
     template <bool printOnError = true>
@@ -423,7 +430,7 @@ private:
     const std::string mOMXName;
     const std::shared_ptr<const OMXR_Core> mOMXR_Core;
     ADAPTER_STATE mAdapterState;
-    std::unique_ptr<OMXR_Adapter> mOMXR_Adapter;
+    std::unique_ptr<const OMXR_Adapter> mOMXR_Adapter;
 
     std::vector<OMX_BUFFERHEADERTYPE*> mHeaders[PortCount];
     std::vector<bool> mOwnedOutputIndexes;

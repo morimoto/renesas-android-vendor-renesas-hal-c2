@@ -359,8 +359,7 @@ void C2VendorDecComponent::onOutputDone(const ExtendedBufferData& data) {
         }
 
         constexpr android_pixel_format_t actualFormat = HAL_PIXEL_FORMAT_YV12;
-        const C2MemoryUsage usage{C2MemoryUsage::CPU_READ,
-                                  C2MemoryUsage::CPU_WRITE};
+        const C2MemoryUsage usage{0, 0}; //workaround for disabling ion cache when allocating buffers in DDK
         std::shared_ptr<C2GraphicBlock> graphicBlock;
 
         status = mOutputBlockPool->fetchGraphicBlock(mBlockWidth, mBlockHeight,

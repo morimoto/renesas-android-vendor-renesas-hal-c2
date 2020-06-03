@@ -421,8 +421,7 @@ void C2VendorEncComponent::onOutputDone(const ExtendedBufferData& data) {
 
     CHECK_GT(size, 0u);
 
-    const C2MemoryUsage usage{C2MemoryUsage::CPU_READ,
-                              C2MemoryUsage::CPU_WRITE};
+    const C2MemoryUsage usage{0, 0}; //workaround for disabling ion cache when allocating buffers in DDK
     std::shared_ptr<C2LinearBlock> linearBlock;
 
     if (const c2_status_t status =

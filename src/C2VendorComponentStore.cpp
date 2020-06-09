@@ -104,7 +104,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               OMX_VIDEO_CodingHEVC,
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_HEVC,
-              {80u, 80u},
+              {192u, 192u},
               {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
               PROFILE_HEVC_MAIN,
               LEVEL_HEVC_MAIN_5,

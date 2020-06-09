@@ -38,7 +38,7 @@
         <MediaCodec name="c2.renesas.hevc.decoder" type="video/hevc">
             <Alias name="OMX.RENESAS.VIDEO.DECODER.H265" />
             <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1088" />
+            <Limit name="size" min="192x192" max="1920x1088" />
             <Limit name="block-size" value="16x16" />
             <Limit name="blocks-per-second" range="1-489600" />
             <Limit name="bitrate" range="1-80000000" />

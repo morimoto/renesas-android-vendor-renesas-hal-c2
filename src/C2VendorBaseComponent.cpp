@@ -1105,8 +1105,8 @@ void C2VendorBaseComponent::handleInputDone(const BufferData& data) {
         CHECK(mEmptiedWorks.emplace(frameIndex, std::move(emptiedWork)).second);
     }
 
-    if (checkState<false>(ADAPTER_STATE::FLUSHING)) {
-        R_LOG(DEBUG) << "Can't handle workToProgress, flushing in progress";
+    if (!checkState<true>(ADAPTER_STATE::EXECUTING)) {
+        R_LOG(DEBUG) << "Can't handle workToProgress, illegal state";
 
         mAvailableInputIndexes.push_back(index);
 

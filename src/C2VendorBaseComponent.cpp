@@ -933,6 +933,17 @@ bool C2VendorBaseComponent::handleDequeue() {
     const C2FrameData& input = work->input;
     const uint64_t frameIndex = input.ordinal.frameIndex.peeku();
 
+    if (input.buffers.empty() &&
+        ((input.flags & C2FrameData::FLAG_END_OF_STREAM) == 0u ||
+         (!mOutputBlockPool && frameIndex == 0u))) {
+        R_LOG(DEBUG) << "Empty frameIndex " << frameIndex
+                     << ", no actions required";
+
+        reportWork(std::move(work), C2_OK);
+
+        return hasWork;
+    }
+
     createOutputPoolIfNeeded();
 
     {
@@ -946,17 +957,6 @@ bool C2VendorBaseComponent::handleDequeue() {
 
             return hasWork;
         }
-    }
-
-    if (input.buffers.empty() &&
-        ((input.flags & C2FrameData::FLAG_END_OF_STREAM) == 0u ||
-         (!mOutputBlockPool && frameIndex == 0u))) {
-        R_LOG(DEBUG) << "Empty frameIndex " << frameIndex
-                     << ", no actions required";
-
-        reportWork(std::move(work), C2_OK);
-
-        return hasWork;
     }
 
     const size_t index = mAvailableInputIndexes.front();

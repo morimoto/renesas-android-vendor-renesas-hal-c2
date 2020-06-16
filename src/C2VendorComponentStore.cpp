@@ -131,13 +131,14 @@ C2VendorComponentStore::C2VendorComponentStore()
               MEDIA_MIMETYPE_VIDEO_MPEG4,
               {80u, 80u},
               {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
-              PROFILE_MP4V_MAIN,
-              LEVEL_MP4V_4,
+              PROFILE_MP4V_SIMPLE,
+              LEVEL_MP4V_5,
               {
-                  PROFILE_MP4V_MAIN,
+                  PROFILE_MP4V_SIMPLE,
+                  PROFILE_MP4V_ADVANCED_SIMPLE,
               },
               {
-                  LEVEL_MP4V_4,
+                  LEVEL_MP4V_5,
               },
           },
 #ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP8

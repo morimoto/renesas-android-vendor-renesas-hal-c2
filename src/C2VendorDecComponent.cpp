@@ -416,24 +416,9 @@ void C2VendorDecComponent::onOutputDone(const ExtendedBufferData& data) {
 
 bool C2VendorDecComponent::forceMaxDecodeCapIfNeeded(
     const OMXR_Adapter& omxrAdapter,
-    OMX_VIDEO_CODINGTYPE omxCodingType,
+    OMX_VIDEO_CODINGTYPE omxCodingType ATTRIBUTE_UNUSED,
     uint32_t maxPictureWidth,
     uint32_t maxPictureHeight) {
-    constexpr OMX_VIDEO_CODINGTYPE mEnforcingCodingTypes[] = {
-        OMX_VIDEO_CodingAVC,
-        OMX_VIDEO_CodingHEVC,
-        OMX_VIDEO_CodingVP8,
-        OMX_VIDEO_CodingVP9,
-    };
-
-    if (std::find(std::cbegin(mEnforcingCodingTypes),
-                  std::cend(mEnforcingCodingTypes),
-                  omxCodingType) == std::cend(mEnforcingCodingTypes)) {
-        R_LOG(DEBUG) << "There's no need to enforce max decode cap for "
-                     << omxCodingType;
-        return false;
-    }
-
     C2StreamPictureSizeInfo::output pictureSize;
 
     CHECK_EQ(mIntfImpl->query({&pictureSize}, {}, C2_MAY_BLOCK, {}), C2_OK);
@@ -479,8 +464,8 @@ bool C2VendorDecComponent::forceMaxDecodeCapIfNeeded(
     if (omxCodingType == OMX_VIDEO_CodingVP9) {
         R_LOG(DEBUG) << "VP9 reference scaling feature is enabled";
 
-        mBlockWidth = maxPictureWidth = widthFsv.range.max.ref<uint32_t>();
-        mBlockHeight = maxPictureHeight = heightFsv.range.max.ref<uint32_t>();
+        mBlockWidth = widthFsv.range.max.ref<uint32_t>();
+        mBlockHeight = heightFsv.range.max.ref<uint32_t>();
     } else
 #endif
         if (maxPictureWidth != 0u || maxPictureHeight != 0u ||
@@ -511,12 +496,12 @@ bool C2VendorDecComponent::forceMaxDecodeCapIfNeeded(
 
     R_LOG(DEBUG) << "Previous decode cap " << maxDecCap.nMaxDecodedWidth << "x"
                  << maxDecCap.nMaxDecodedHeight << ", enabled "
-                 << maxDecCap.bForceEnable << ", requested " << maxPictureWidth
-                 << "x" << maxPictureHeight;
+                 << maxDecCap.bForceEnable << ", requested " << mBlockWidth
+                 << "x" << mBlockHeight;
 
     maxDecCap.bForceEnable = OMX_TRUE;
-    maxDecCap.nMaxDecodedWidth = maxPictureWidth;
-    maxDecCap.nMaxDecodedHeight = maxPictureHeight;
+    maxDecCap.nMaxDecodedWidth = mBlockWidth;
+    maxDecCap.nMaxDecodedHeight = mBlockHeight;
 
     omxError = omxrAdapter.setParam(maxDecCapIndex, maxDecCap);
 

@@ -99,6 +99,7 @@ private:
                           const C2P<C2StreamPictureSizeInfo>& old,
                           C2P<C2StreamPictureSizeInfo>& me);
 
+protected:
     const C2String mC2Name;
     const C2String mOMXName;
     const OMX_VIDEO_CODINGTYPE mOMXCodingType;
@@ -145,7 +146,8 @@ private:
     static C2R MaxPictureSizeSetter(
         bool mayBlock,
         const C2P<C2StreamMaxPictureSizeTuning::output>& old,
-        C2P<C2StreamMaxPictureSizeTuning::output>& me);
+        C2P<C2StreamMaxPictureSizeTuning::output>& me,
+        const C2P<C2StreamPictureSizeInfo>& size);
 
     static C2R DefaultColorAspectsSetter(
         bool mayBlock, C2P<C2StreamColorAspectsTuning::output>& me);

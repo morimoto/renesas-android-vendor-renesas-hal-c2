@@ -270,7 +270,7 @@ IntfImplDec::IntfImplDec(const std::shared_ptr<C2ReflectorHelper>& reflector,
                 C2F(mOutputMaxPictureSize, height)
                     .inRange(info.minSize.height, info.maxSize.height, 2u),
             })
-            .withSetter(MaxPictureSizeSetter)
+            .withSetter(MaxPictureSizeSetter, mSize)
             .build());
 
     constexpr uint32_t delay = 8u;
@@ -343,32 +343,45 @@ IntfImplDec::IntfImplDec(const std::shared_ptr<C2ReflectorHelper>& reflector,
 C2R IntfImplDec::MaxPictureSizeSetter(
     bool mayBlock ATTRIBUTE_UNUSED,
     const C2P<C2StreamMaxPictureSizeTuning::output>& old,
-    C2P<C2StreamMaxPictureSizeTuning::output>& me) {
+    C2P<C2StreamMaxPictureSizeTuning::output>& me,
+    const C2P<C2StreamPictureSizeInfo>& size) {
     const auto& oldParam = old.v;
     auto& meParam = me.set();
+    const auto& sizeParam = size.v;
 
     R_LOG(DEBUG) << oldParam.width << "x" << oldParam.height << " -> "
-                 << meParam.width << "x" << meParam.height;
+                 << meParam.width << "x" << meParam.height << ", size "
+                 << sizeParam.width << "x" << sizeParam.height;
 
     C2R res = C2R::Ok();
 
-    if (const auto widthField = me.F(meParam.width);
-        !widthField.supportsAtAll(meParam.width) && meParam.width != 0u) {
-        R_LOG(ERROR) << "Unsupported width " << meParam.width
-                     << ", fallback to " << oldParam.width;
+    if (meParam.width != 0u) {
+        if (const auto widthField = me.F(meParam.width);
+            !widthField.supportsAtAll(meParam.width)) {
+            R_LOG(ERROR) << "Unsupported width " << meParam.width
+                         << ", fallback to " << oldParam.width;
 
-        meParam.width = oldParam.width;
-        res = res.plus(C2SettingResultBuilder::BadValue(widthField));
+            meParam.width = oldParam.width;
+            res = res.plus(C2SettingResultBuilder::BadValue(widthField));
+        } else {
+            meParam.width = std::max(meParam.width, sizeParam.width);
+        }
     }
 
-    if (const auto heightField = me.F(meParam.height);
-        !heightField.supportsAtAll(meParam.height) && meParam.height != 0u) {
-        R_LOG(ERROR) << "Unsupported height " << meParam.height
-                     << ", fallback to " << oldParam.height;
+    if (meParam.height != 0u) {
+        if (const auto heightField = me.F(meParam.height);
+            !heightField.supportsAtAll(meParam.height)) {
+            R_LOG(ERROR) << "Unsupported height " << meParam.height
+                         << ", fallback to " << oldParam.height;
 
-        meParam.height = oldParam.height;
-        res = res.plus(C2SettingResultBuilder::BadValue(heightField));
+            meParam.height = oldParam.height;
+            res = res.plus(C2SettingResultBuilder::BadValue(heightField));
+        } else {
+            meParam.height = std::max(meParam.height, sizeParam.height);
+        }
     }
+
+    R_LOG(DEBUG) << "Final " << meParam.width << "x" << meParam.height;
 
     return res;
 }

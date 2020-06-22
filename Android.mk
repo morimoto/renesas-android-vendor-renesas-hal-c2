@@ -20,25 +20,33 @@ ifneq (,$(filter $(TARGET_PRODUCT),salvator ulcb kingfisher))
 ifeq ($(TARGET_PRODUCT),salvator)
     # M3N
     ifeq ($(TARGET_BOARD_PLATFORM),r8a77965)
-        RCAR_ENABLE_VIDEO_VP8 ?= true
-        RCAR_ENABLE_VIDEO_VP9 ?= true
+        RCAR_ENABLE_VIDEO_VP8D ?= true
+        RCAR_ENABLE_VIDEO_VP9D ?= true
+        RCAR_ENABLE_VIDEO_VP8E ?= true
     endif
 
     # H3
     ifeq ($(TARGET_BOARD_PLATFORM),r8a7795)
-        RCAR_ENABLE_VIDEO_VP8 ?= true
+        RCAR_ENABLE_VIDEO_VP8D ?= true
+        RCAR_ENABLE_VIDEO_VP8E ?= true
     endif
 
     # M3
     ifeq ($(TARGET_BOARD_PLATFORM),r8a7796)
-        RCAR_ENABLE_VIDEO_VP8 ?= true
-        RCAR_ENABLE_VIDEO_VP9 ?= true
+        RCAR_ENABLE_VIDEO_VP8D ?= true
+        RCAR_ENABLE_VIDEO_VP9D ?= true
+        RCAR_ENABLE_VIDEO_VP8E ?= true
     endif
 endif
 
-# Disable renesas VP8, VP9 by default
-RCAR_ENABLE_VIDEO_VP8 ?= false
-RCAR_ENABLE_VIDEO_VP9 ?= false
+RCAR_ENABLE_VIDEO_H263D  ?= true
+RCAR_ENABLE_VIDEO_H264D  ?= true
+RCAR_ENABLE_VIDEO_H265D  ?= true
+RCAR_ENABLE_VIDEO_MPEG4D ?= true
+RCAR_ENABLE_VIDEO_VP8D   ?= false
+RCAR_ENABLE_VIDEO_VP9D   ?= false
+RCAR_ENABLE_VIDEO_H264E  ?= true
+RCAR_ENABLE_VIDEO_VP8E   ?= false
 
 MY_SAVED_PATH := $(call my-dir)
 OMX_TOP := $(MY_SAVED_PATH)/omx
@@ -98,24 +106,60 @@ LOCAL_REQUIRED_MODULES := \
     omxr_prebuilts_common \
     media_codecs_performance_renesas \
     media_codecs_renesas \
-    media_codecs_renesas_vp8 \
-    media_codecs_renesas_vp9 \
+    media_codecs_renesas_h263d \
+    media_codecs_renesas_h264d \
+    media_codecs_renesas_h265d \
+    media_codecs_renesas_mpeg4d \
+    media_codecs_renesas_vp8d \
+    media_codecs_renesas_vp9d \
+    media_codecs_renesas_h264e \
+    media_codecs_renesas_vp8e \
     libomxr_utility \
     libomxr_uvcs_udf \
     libomxr_cnvpfdp \
     libomxr_cnvosdep \
     libomxr_videoconverter
 
-ifeq ($(RCAR_ENABLE_VIDEO_VP8),true)
-LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_VP8
-LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp8
+ifeq ($(RCAR_ENABLE_VIDEO_H263D),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_H263D
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_h263d
 endif
 
-ifeq ($(RCAR_ENABLE_VIDEO_VP9),true)
+ifeq ($(RCAR_ENABLE_VIDEO_H264D),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_H264D
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_h264d
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_H265D),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_H265D
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_h265d
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_MPEG4D),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_MPEG4D
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_mpeg4d
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_VP8D),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_VP8D
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp8d
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_VP9D),true)
 LOCAL_CFLAGS += \
-    -DHAL_C2_VENDOR_ENABLE_VIDEO_VP9 \
+    -DHAL_C2_VENDOR_ENABLE_VIDEO_VP9D \
     -DHAL_C2_VENDOR_ENABLE_SUPPORTING_VP9_REFERENCE_SCALING
-LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp9
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp9d
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_H264E),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_H264E
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_h264e
+endif
+
+ifeq ($(RCAR_ENABLE_VIDEO_VP8E),true)
+LOCAL_CFLAGS += -DHAL_C2_VENDOR_ENABLE_VIDEO_VP8E
+LOCAL_REQUIRED_MODULES += omxr_prebuilts_vp8e
 endif
 
 include $(BUILD_EXECUTABLE)

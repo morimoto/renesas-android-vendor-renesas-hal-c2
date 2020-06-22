@@ -14,65 +14,17 @@
      limitations under the License.
 -->
 <MediaCodecs>
-    <Decoders>
-        <MediaCodec name="c2.renesas.h263.decoder" type="video/3gpp">
-            <Alias name="OMX.RENESAS.VIDEO.DECODER.H263" />
-            <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="128x96" max="1920x1088" />
-            <Limit name="block-size" value="16x16" />
-            <Limit name="blocks-per-second" range="1-489600" />
-            <Limit name="bitrate" range="1-80000000" />
-            <Limit name="concurrent-instances" max="2" />
-            <Limit name="performance-point-1920x1080" value="60" />
-            <Feature name="adaptive-playback" />
-        </MediaCodec>
-        <MediaCodec name="c2.renesas.avc.decoder" type="video/avc">
-            <Alias name="OMX.RENESAS.VIDEO.DECODER.H264" />
-            <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1088" />
-            <Limit name="block-size" value="16x16" />
-            <Limit name="blocks-per-second" range="1-489600" />
-            <Limit name="bitrate" range="1-80000000" />
-            <Limit name="concurrent-instances" max="2" />
-            <Limit name="performance-point-1920x1080" value="30" />
-            <Feature name="adaptive-playback" />
-        </MediaCodec>
-        <MediaCodec name="c2.renesas.hevc.decoder" type="video/hevc">
-            <Alias name="OMX.RENESAS.VIDEO.DECODER.H265" />
-            <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="192x192" max="1920x1088" />
-            <Limit name="block-size" value="16x16" />
-            <Limit name="blocks-per-second" range="1-489600" />
-            <Limit name="bitrate" range="1-80000000" />
-            <Limit name="concurrent-instances" max="2" />
-            <Limit name="performance-point-1920x1080" value="30" />
-            <Feature name="adaptive-playback" />
-        </MediaCodec>
-        <MediaCodec name="c2.renesas.mpeg4.decoder" type="video/mp4v-es">
-            <Alias name="OMX.RENESAS.VIDEO.DECODER.MPEG4" />
-            <Limit name="alignment" value="2x2" />
-            <Limit name="size" min="80x80" max="1920x1088" />
-            <Limit name="block-size" value="16x16" />
-            <Limit name="blocks-per-second" range="1-489600" />
-            <Limit name="bitrate" range="1-80000000" />
-            <Limit name="concurrent-instances" max="2" />
-            <Limit name="performance-point-1920x1080" value="60" />
-            <Feature name="adaptive-playback" />
-        </MediaCodec>
-    </Decoders>
-    <Encoders>
-        <MediaCodec name="c2.renesas.avc.encoder" type="video/avc" >
-            <Alias name="OMX.RENESAS.VIDEO.ENCODER.H264" />
-            <Limit name="alignment" value="8x8" />
-            <Limit name="size" min="80x80" max="1920x1088" />
-            <Limit name="block-size" value="16x16" />
-            <Limit name="blocks-per-second" range="1-489600" />
-            <Limit name="concurrent-instances" max="2" />
-            <Limit name="performance-point-1920x1080" value="30" />
-            <Limit name="bitrate" range="1-80000000" />
-        </MediaCodec>
-    </Encoders>
+    <Include href="media_codecs_renesas_h263d.xml" />
+    <Include href="media_codecs_renesas_h264d.xml" />
+    <Include href="media_codecs_renesas_h265d.xml" />
+    <Include href="media_codecs_renesas_mpeg4d.xml" />
+    <Include href="media_codecs_renesas_vp8d.xml" />
+    <Include href="media_codecs_renesas_vp9d.xml" />
+    <Include href="media_codecs_renesas_h264e.xml" />
+    <Include href="media_codecs_renesas_vp8e.xml" />
 
-    <Include href="media_codecs_renesas_vp8.xml" />
-    <Include href="media_codecs_renesas_vp9.xml" />
+    <!-- disable SW mpeg4 decoder -->
+    <Decoders>
+        <MediaCodec name="c2.android.mpeg4.decoder" update="true" enabled="false" />
+    </Decoders>
 </MediaCodecs>

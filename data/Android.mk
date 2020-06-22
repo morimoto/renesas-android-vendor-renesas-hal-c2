@@ -25,21 +25,75 @@ LOCAL_PREBUILT_MODULE_FILE := \
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := media_codecs_renesas_vp8
+LOCAL_MODULE := media_codecs_renesas_h263d
 LOCAL_MODULE_CLASS := ETC
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
 LOCAL_SRC_FILES := \
-    $(if $(filter true,$(RCAR_ENABLE_VIDEO_VP8)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_H263D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := media_codecs_renesas_vp9
+LOCAL_MODULE := media_codecs_renesas_h264d
 LOCAL_MODULE_CLASS := ETC
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
 LOCAL_SRC_FILES := \
-    $(if $(filter true,$(RCAR_ENABLE_VIDEO_VP9)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_H264D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_h265d
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_H265D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_mpeg4d
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_MPEG4D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_vp8d
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_VP8D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_vp9d
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_VP9D)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_h264e
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_H264E)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := media_codecs_renesas_vp8e
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_STEM := $(LOCAL_MODULE).xml
+LOCAL_SRC_FILES := \
+    $(if $(filter true,$(RCAR_ENABLE_VIDEO_VP8E)),$(LOCAL_MODULE_STEM),media_codecs_renesas_empty.xml)
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)

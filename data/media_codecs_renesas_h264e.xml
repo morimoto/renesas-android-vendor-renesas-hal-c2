@@ -1,0 +1,14 @@
+<Included>
+    <Encoders>
+        <MediaCodec name="c2.renesas.avc.encoder" type="video/avc" >
+            <Alias name="OMX.RENESAS.VIDEO.ENCODER.H264" />
+            <Limit name="alignment" value="8x8" />
+            <Limit name="size" min="80x80" max="1920x1088" />
+            <Limit name="block-size" value="16x16" />
+            <Limit name="blocks-per-second" range="1-489600" />
+            <Limit name="concurrent-instances" max="2" />
+            <Limit name="performance-point-1920x1080" value="30" />
+            <Limit name="bitrate" range="1-80000000" />
+        </MediaCodec>
+    </Encoders>
+</Included>

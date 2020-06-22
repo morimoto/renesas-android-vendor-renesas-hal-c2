@@ -42,6 +42,7 @@ C2VendorComponentStore::C2VendorComponentStore()
     : mReflector{std::make_shared<C2ReflectorHelper>()},
       mOMXR_Core{std::make_shared<OMXR_Core>()},
       mInfos{
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_H263D
           {
               true,
               "c2.renesas.h263.decoder",
@@ -60,6 +61,8 @@ C2VendorComponentStore::C2VendorComponentStore()
                   LEVEL_H263_40,
               },
           },
+#endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_H264D
           {
               true,
               "c2.renesas.avc.decoder",
@@ -97,6 +100,8 @@ C2VendorComponentStore::C2VendorComponentStore()
                   LEVEL_AVC_5_1,
               },
           },
+#endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_H265D
           {
               true,
               "c2.renesas.hevc.decoder",
@@ -122,6 +127,8 @@ C2VendorComponentStore::C2VendorComponentStore()
                   LEVEL_HEVC_MAIN_5,
               },
           },
+#endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_MPEG4D
           {
               true,
               "c2.renesas.mpeg4.decoder",
@@ -141,7 +148,8 @@ C2VendorComponentStore::C2VendorComponentStore()
                   LEVEL_MP4V_5,
               },
           },
-#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP8
+#endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP8D
           {
               true,
               "c2.renesas.vp8.decoder",
@@ -161,7 +169,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               },
           },
 #endif
-#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP9
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP9D
           {
               true,
               "c2.renesas.vp9.decoder",
@@ -181,6 +189,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               },
           },
 #endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_H264E
           {
               false,
               "c2.renesas.avc.encoder",
@@ -216,7 +225,8 @@ C2VendorComponentStore::C2VendorComponentStore()
                   LEVEL_AVC_5_1,
               },
           },
-#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP8
+#endif
+#ifdef HAL_C2_VENDOR_ENABLE_VIDEO_VP8E
           {
               false,
               "c2.renesas.vp8.encoder",

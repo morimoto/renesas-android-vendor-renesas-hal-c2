@@ -115,9 +115,14 @@ protected:
         uint32_t width;
         uint32_t height;
         C2ColorAspectsStruct aspects;
+        void* physAddr;
 
         ExtendedBufferData(OMX_BUFFERHEADERTYPE* const _header)
-            : header{_header}, width{0u}, height{0u}, aspects{} {}
+            : header{_header},
+              width{0u},
+              height{0u},
+              aspects{},
+              physAddr{nullptr} {}
     };
 
     struct BufferData {

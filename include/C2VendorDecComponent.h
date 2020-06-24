@@ -17,6 +17,8 @@
 #ifndef C2_VENDOR_DEC_COMPONENT_H
 #define C2_VENDOR_DEC_COMPONENT_H
 
+#include <img_gralloc1_public.h>
+
 #include "C2VendorBaseComponent.h"
 #include "OMXR_Extension_vdcmn.h"
 
@@ -62,6 +64,15 @@ private:
     static constexpr void ConvertVUIToC2ColorAspects(
         const VUIColorAspects& vuiAspects, C2ColorAspectsStruct& aspects);
 
+    static void VspmCompleteCallback(unsigned long jobId,
+                                     long result,
+                                     void* userData);
+
+    void initVspm();
+    void deinitVspm();
+    c2_status_t vspmCopy(const void* const omxPhysAddr,
+                         const IMG_native_handle_t* const handle);
+
     bool forceMaxDecodeCapIfNeeded(const OMXR_Adapter& omxrAdapter,
                                    OMX_VIDEO_CODINGTYPE omxCodingType,
                                    uint32_t maxPictureWidth,
@@ -87,6 +98,11 @@ private:
     std::function<void(const C2ColorAspectsStruct&, C2Buffer&)>
         mVerifyColorAspectsFunc;
     C2ColorAspectsStruct mBitstreamAspects;
+
+    void* mVspmHandle;
+    std::mutex mVspmMutex;
+    std::condition_variable mVspmCV;
+    c2_status_t mVspmResult;
 };
 
 } // namespace android::hardware::media::c2::V1_0::renesas

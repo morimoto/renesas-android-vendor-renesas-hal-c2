@@ -36,7 +36,7 @@ public:
 protected:
     bool onStateSet(OMX_STATETYPE omxState) final;
     bool onConfigure(const OMXR_Adapter& omxrAdapter) final;
-    c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
+    c2_status_t onProcessInput(const C2Work& work,
                                OMX_BUFFERHEADERTYPE* const header,
                                bool fromDequeue) final;
     ExtendedBufferData onPreprocessOutput(

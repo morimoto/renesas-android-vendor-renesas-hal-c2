@@ -33,21 +33,14 @@ public:
     ~C2VendorEncComponent() final;
 
 protected:
-    void onExtensionMsg(const Message& msg) final;
     bool onStateSet(OMX_STATETYPE omxState) final;
     bool onConfigure(const OMXR_Adapter& omxrAdapter) final;
-    c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
+    c2_status_t onProcessInput(const C2Work& work,
                                OMX_BUFFERHEADERTYPE* const header,
-                               bool fromDequeuex);
-    c2_status_t onInputDone(const BufferData& data) final;
+                               bool fromDequeue) final;
     void onOutputDone(const ExtendedBufferData& data) final;
 
 private:
-    struct VspmCallbackData {
-        C2VendorEncComponent* const component;
-        OMX_BUFFERHEADERTYPE* const header;
-    };
-
     static bool MapAVCProfileLevel(C2Config::profile_t c2Profile,
                                    C2Config::level_t c2Level,
                                    OMX_VIDEO_AVCPROFILETYPE& omxProfile,
@@ -62,10 +55,12 @@ private:
                                      void* userData);
     void initVspm();
     void deinitVspm();
+    c2_status_t vspmCopy(const void* const omxPhysAddr,
+                         const IMG_native_handle_t* const handle,
+                         OMX_COLOR_FORMATTYPE colorFormat,
+                         bool input);
     c2_status_t vspmConvertRGBAToYUVAWithEmpty(
-        const IMG_native_handle_t* const handle,
-        OMX_BUFFERHEADERTYPE* const header);
-    void onVspmConversionCompleted(bool success, const BufferData& data);
+        const void* const omxPhysAddr, const IMG_native_handle_t* const handle);
 
     void initGralloc();
     void deinitGralloc();
@@ -74,25 +69,12 @@ private:
                                    C2Config::profile_t c2Profile,
                                    C2Config::level_t c2Level) const;
 
-    c2_status_t submitInput(const C2GraphicView& view,
-                            const IMG_native_handle_t* const handle,
-                            OMX_BUFFERHEADERTYPE* const header);
-    c2_status_t submitEmptyEOSInput(OMX_BUFFERHEADERTYPE* const header,
-                                    uint64_t frameIndex) const;
-
-    static constexpr uint32_t VSPM_CONVERTION_FAILED =
-        Message::EXTENSION_MSGS_START;
-    static constexpr uint32_t VSPM_CONVERTION_SUCCESS =
-        VSPM_CONVERTION_FAILED + 1u;
-
-    static constexpr uint64_t FRAMEINDEX_NONE =
-        std::numeric_limits<uint64_t>::max();
-
     const std::shared_ptr<IntfImplEnc> mIntfImpl;
 
     void* mVspmHandle;
-    size_t mVspmJobCounter;
-    uint64_t mPendingEmptyEOSFrameIndex;
+    std::mutex mVspmMutex;
+    std::condition_variable mVspmCV;
+    c2_status_t mVspmResult;
 
     gralloc1_device_t* mGrallocDevice;
     GRALLOC1_PFN_LOCK mGrallocLockFunc;

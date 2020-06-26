@@ -300,19 +300,6 @@ c2_status_t C2VendorBaseComponent::flush_sm(
         inputWorkQueue->clear();
     }
 
-    {
-        auto worksToProcess = mWorksToProcess.lock();
-
-        R_LOG(DEBUG) << "Abandoning " << worksToProcess->size()
-                     << " worksToProgress";
-
-        for (std::unique_ptr<C2Work>& work : *worksToProcess) {
-            flushedWork->push_back(std::move(work));
-        }
-
-        worksToProcess->clear();
-    }
-
     for (const std::unique_ptr<C2Work>& work : *flushedWork) {
         work->input.buffers.clear();
     }
@@ -354,6 +341,19 @@ c2_status_t C2VendorBaseComponent::stop() {
     if (mState != STATE::RUNNING) {
         R_LOG(DEBUG) << "Not running";
         return C2_BAD_STATE;
+    }
+
+    {
+        auto inputWorkQueue = mInputWorkQueue.lock();
+
+        R_LOG(DEBUG) << "Abandoning " << inputWorkQueue->size()
+                     << " inputWorks";
+
+        for (std::unique_ptr<C2Work>& work : *inputWorkQueue) {
+            reportWork(std::move(work), C2_NOT_FOUND);
+        }
+
+        inputWorkQueue->clear();
     }
 
     const c2_status_t status = mComponentThread->postAndWait<Message::STOP>();
@@ -525,26 +525,6 @@ bool C2VendorBaseComponent::onStateSet(OMX_STATETYPE omxState) {
     return true;
 }
 
-template <bool printOnError>
-bool C2VendorBaseComponent::checkState(ADAPTER_STATE expected) const {
-    if (mAdapterState != expected) {
-        if constexpr (printOnError) {
-            R_LOG(ERROR) << "Bad adapter state: actual " << mAdapterState
-                         << ", expected " << expected;
-        }
-
-        return false;
-    }
-
-    return true;
-}
-
-template bool C2VendorBaseComponent::checkState<true>(
-    ADAPTER_STATE expected) const;
-
-template bool C2VendorBaseComponent::checkState<false>(
-    ADAPTER_STATE expected) const;
-
 OMX_ERRORTYPE C2VendorBaseComponent::setPortFormat(
     PortIndex portIndex,
     OMX_U32 frameRate,
@@ -643,34 +623,6 @@ void C2VendorBaseComponent::querySupportedProfileLevels(
         R_LOG(INFO) << "#" << profileLevel.nProfileIndex << ": "
                      << profileLevel.eProfile << ", " << profileLevel.eLevel;
     }
-}
-
-void C2VendorBaseComponent::processConfigUpdate(
-    std::vector<std::unique_ptr<C2Param>>& configUpdate) {
-    if (configUpdate.empty()) {
-        return;
-    }
-
-    std::vector<C2Param*> rawConfigUpdate;
-    rawConfigUpdate.reserve(configUpdate.size());
-
-    for (const std::unique_ptr<C2Param>& config : configUpdate) {
-        if (config) {
-            rawConfigUpdate.push_back(config.get());
-        }
-    }
-
-    if (!rawConfigUpdate.empty()) {
-        std::vector<std::unique_ptr<C2SettingResult>> failures;
-
-        const c2_status_t status =
-            intf()->config_vb(rawConfigUpdate, C2_MAY_BLOCK, &failures);
-
-        R_LOG(DEBUG) << "Config " << rawConfigUpdate.size() << " updates, "
-                     << status;
-    }
-
-    configUpdate.clear();
 }
 
 OMX_ERRORTYPE C2VendorBaseComponent::emptyBuffer(
@@ -789,6 +741,26 @@ void C2VendorBaseComponent::reportClonedWork(const C2Work& work) {
     (*mListener.lock())
         ->onWorkDone_nb(shared_from_this(), MakeList(std::move(clonedWork)));
 }
+
+template <bool printOnError>
+bool C2VendorBaseComponent::checkState(ADAPTER_STATE expected) const {
+    if (mAdapterState != expected) {
+        if constexpr (printOnError) {
+            R_LOG(ERROR) << "Bad adapter state: actual " << mAdapterState
+                         << ", expected " << expected;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+template bool C2VendorBaseComponent::checkState<true>(
+    ADAPTER_STATE expected) const;
+
+template bool C2VendorBaseComponent::checkState<false>(
+    ADAPTER_STATE expected) const;
 
 void C2VendorBaseComponent::handleMsg(const Message& msg) {
     c2_status_t res = C2_NO_INIT;
@@ -913,6 +885,11 @@ bool C2VendorBaseComponent::handleDequeue() {
         return false;
     }
 
+    if (mAvailableInputIndexes.empty()) {
+        R_LOG(DEBUG) << "No available input buffers";
+        return false;
+    }
+
     std::unique_ptr<C2Work> work;
     bool hasWork = false;
 
@@ -945,25 +922,18 @@ bool C2VendorBaseComponent::handleDequeue() {
     }
 
     createOutputPoolIfNeeded();
+    processConfigUpdate(work->input.configUpdate);
+    const c2_status_t status =
+        onProcessInput(*work,
+                       mHeaders[InputPortIndex][mAvailableInputIndexes.front()],
+                       true);
 
-    {
-        auto worksToProgress = mWorksToProcess.lock();
-
-        if (mAvailableInputIndexes.empty() || !worksToProgress->empty()) {
-            R_LOG(DEBUG) << "FrameIndex " << frameIndex
-                         << " will be processed lately";
-
-            worksToProgress->push_back(std::move(work));
-
-            return hasWork;
-        }
-    }
-
-    const size_t index = mAvailableInputIndexes.front();
-
-    if (onProcessInput(std::move(work), mHeaders[InputPortIndex][index],
-                       true) == C2_OK) {
+    if (status == C2_OK) {
         mAvailableInputIndexes.pop_front();
+
+        pushPendingWork(frameIndex, std::move(work));
+    } else {
+        reportWork(std::move(work), status);
     }
 
     return hasWork;
@@ -1084,7 +1054,7 @@ void C2VendorBaseComponent::handleEvent(const EventData& data) {
 void C2VendorBaseComponent::handleInputDone(const BufferData& data) {
     OMX_BUFFERHEADERTYPE* const header = data.header;
     const size_t index = GetBufferIndex(header);
-    const uint64_t frameIndex = TsToFrameIndex(header->nTimeStamp);
+    uint64_t frameIndex = TsToFrameIndex(header->nTimeStamp);
     const bool csd = (header->nFlags & OMX_BUFFERFLAG_CODECCONFIG) != 0u;
 
     R_LOG(DEBUG) << "OMXFlags " << std::hex << header->nFlags << std::dec
@@ -1106,35 +1076,35 @@ void C2VendorBaseComponent::handleInputDone(const BufferData& data) {
     }
 
     if (!checkState<true>(ADAPTER_STATE::EXECUTING)) {
-        R_LOG(DEBUG) << "Can't handle workToProgress, illegal state";
+        R_LOG(DEBUG) << "Can't handle inputWorks, illegal state";
 
         mAvailableInputIndexes.push_back(index);
 
         return;
     }
 
-    c2_status_t status = onInputDone(data);
-
-    if (status != C2_OK && status != C2_OMITTED) {
-        mAvailableInputIndexes.push_back(index);
-
-        return;
-    }
-
-    status = C2_NO_INIT;
+    c2_status_t status = C2_NO_INIT;
 
     while (status == C2_NO_INIT) {
-        std::unique_ptr<C2Work> work = tryPopWorkToProcess();
+        std::unique_ptr<C2Work> work;
 
-        if (!work) {
-            R_LOG(DEBUG) << "No more works to process";
-            break;
+        {
+            auto inputWorkQueue = mInputWorkQueue.lock();
+
+            if (inputWorkQueue->empty()) {
+                R_LOG(DEBUG) << "No more inputWorks";
+                break;
+            }
+
+            work = std::move(inputWorkQueue->front());
+            inputWorkQueue->pop_front();
         }
 
+        frameIndex = work->input.ordinal.frameIndex.peeku();
+
         if (work->input.buffers.empty() &&
-            ((work->input.flags & C2FrameData::FLAG_END_OF_STREAM) == 0u)) {
-            R_LOG(DEBUG) << "Empty frameIndex "
-                         << TsToFrameIndex(header->nTimeStamp)
+            (work->input.flags & C2FrameData::FLAG_END_OF_STREAM) == 0u) {
+            R_LOG(DEBUG) << "Empty frameIndex " << frameIndex
                          << ", no actions required";
 
             reportWork(std::move(work), C2_OK);
@@ -1142,7 +1112,14 @@ void C2VendorBaseComponent::handleInputDone(const BufferData& data) {
             continue;
         }
 
-        status = onProcessInput(std::move(work), header, false);
+        processConfigUpdate(work->input.configUpdate);
+        status = onProcessInput(*work, header, false);
+
+        if (status == C2_OK) {
+            pushPendingWork(frameIndex, std::move(work));
+        } else {
+            reportWork(std::move(work), status);
+        }
     }
 
     if (status != C2_OK) {
@@ -1206,8 +1183,8 @@ void C2VendorBaseComponent::handleOutputDone(const ExtendedBufferData& data) {
         mSeenOutputEOS = true;
 
         R_LOG(DEBUG) << "Queues after EOS " << mInputWorkQueue.lock()->size()
-                     << ", " << mWorksToProcess.lock()->size() << ", "
-                     << mPendingWorks.size() << ", " << mEmptiedWorks.size();
+                     << ", " << mPendingWorks.size() << ", "
+                     << mEmptiedWorks.size();
 
         // TODO: finish all works in all queues
     }
@@ -1466,17 +1443,32 @@ c2_status_t C2VendorBaseComponent::createOutputPoolIfNeeded() {
     return C2_OK;
 }
 
-std::unique_ptr<C2Work> C2VendorBaseComponent::tryPopWorkToProcess() {
-    auto worksToProcess = mWorksToProcess.lock();
-
-    if (worksToProcess->empty()) {
-        return nullptr;
+void C2VendorBaseComponent::processConfigUpdate(
+    std::vector<std::unique_ptr<C2Param>>& configUpdate) {
+    if (configUpdate.empty()) {
+        return;
     }
 
-    std::unique_ptr<C2Work> work = std::move(worksToProcess->front());
-    worksToProcess->pop_front();
+    std::vector<C2Param*> rawConfigUpdate;
+    rawConfigUpdate.reserve(configUpdate.size());
 
-    return work;
+    for (const std::unique_ptr<C2Param>& config : configUpdate) {
+        if (config) {
+            rawConfigUpdate.push_back(config.get());
+        }
+    }
+
+    if (!rawConfigUpdate.empty()) {
+        std::vector<std::unique_ptr<C2SettingResult>> failures;
+
+        const c2_status_t status =
+            intf()->config_vb(rawConfigUpdate, C2_MAY_BLOCK, &failures);
+
+        R_LOG(DEBUG) << "Config " << rawConfigUpdate.size() << " updates, "
+                     << status;
+    }
+
+    configUpdate.clear();
 }
 
 std::ostream& operator<<(std::ostream& os,

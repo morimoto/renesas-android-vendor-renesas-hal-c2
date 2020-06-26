@@ -211,12 +211,9 @@ protected:
     virtual void onExtensionMsg(const Message& msg);
     virtual bool onStateSet(OMX_STATETYPE omxState);
     virtual bool onConfigure(const OMXR_Adapter& omxrAdapter) = 0;
-    virtual c2_status_t onProcessInput(std::unique_ptr<C2Work> work,
+    virtual c2_status_t onProcessInput(const C2Work& work,
                                        OMX_BUFFERHEADERTYPE* const header,
                                        bool fromDequeue) = 0;
-    virtual c2_status_t onInputDone(const BufferData& data ATTRIBUTE_UNUSED) {
-        return C2_OMITTED;
-    }
 
     virtual ExtendedBufferData onPreprocessOutput(
         const OMXR_Adapter& omxrAdapter ATTRIBUTE_UNUSED,
@@ -225,9 +222,6 @@ protected:
     }
 
     virtual void onOutputDone(const ExtendedBufferData& data) = 0;
-
-    template <bool printOnError = true>
-    bool checkState(ADAPTER_STATE expected) const;
 
     template <
         uint32_t type,
@@ -252,20 +246,12 @@ protected:
 
     void querySupportedProfileLevels(PortIndex portIndex) const;
 
-    void processConfigUpdate(
-        std::vector<std::unique_ptr<C2Param>>& configUpdate);
-
     OMX_ERRORTYPE emptyBuffer(OMX_BUFFERHEADERTYPE* const header) const;
     OMX_ERRORTYPE fillBuffer(OMX_BUFFERHEADERTYPE* const header);
-
-    void pushPendingWork(uint64_t frameIndex, std::unique_ptr<C2Work> work);
-    std::unique_ptr<C2Work> popPendingWork(uint64_t frameIndex);
 
     void reportWork(std::unique_ptr<C2Work> work, c2_status_t result);
     void reportError(c2_status_t result);
     void reportClonedWork(const C2Work& work);
-
-    std::list<size_t> mAvailableInputIndexes;
 
     std::map<uint64_t, std::unique_ptr<C2Work>> mEmptiedWorks;
 
@@ -386,6 +372,9 @@ private:
         }
     }
 
+    template <bool printOnError = true>
+    bool checkState(ADAPTER_STATE expected) const;
+
     static constexpr BufferMeta* GetMeta(
         const OMX_BUFFERHEADERTYPE* const header) {
         return static_cast<BufferMeta*>(header->pAppPrivate);
@@ -421,7 +410,11 @@ private:
 
     c2_status_t createOutputPoolIfNeeded();
 
-    std::unique_ptr<C2Work> tryPopWorkToProcess();
+    void processConfigUpdate(
+        std::vector<std::unique_ptr<C2Param>>& configUpdate);
+
+    void pushPendingWork(uint64_t frameIndex, std::unique_ptr<C2Work> work);
+    std::unique_ptr<C2Work> popPendingWork(uint64_t frameIndex);
 
     friend inline std::ostream& operator<<(std::ostream& os,
                                            ADAPTER_STATE state);
@@ -440,10 +433,10 @@ private:
     std::unique_ptr<const OMXR_Adapter> mOMXR_Adapter;
 
     std::vector<OMX_BUFFERHEADERTYPE*> mHeaders[PortCount];
+    std::list<size_t> mAvailableInputIndexes;
     std::vector<bool> mOwnedOutputIndexes;
 
     Mutexed<std::list<std::unique_ptr<C2Work>>> mInputWorkQueue;
-    Mutexed<std::list<std::unique_ptr<C2Work>>> mWorksToProcess;
     std::map<uint64_t, std::unique_ptr<C2Work>> mPendingWorks;
 
     bool mFlushInProgress[PortCount];

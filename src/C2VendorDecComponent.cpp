@@ -191,31 +191,23 @@ bool C2VendorDecComponent::onConfigure(const OMXR_Adapter& omxrAdapter) {
 }
 
 c2_status_t C2VendorDecComponent::onProcessInput(
-    std::unique_ptr<C2Work> work,
-    OMX_BUFFERHEADERTYPE* const header,
-    bool fromDequeue) {
+    const C2Work& work, OMX_BUFFERHEADERTYPE* const header, bool fromDequeue) {
     const size_t index = GetBufferIndex(header);
-    const uint64_t frameIndex = work->input.ordinal.frameIndex.peeku();
-    const bool eos =
-        (work->input.flags & C2FrameData::FLAG_END_OF_STREAM) != 0u;
-    const bool csd = (work->input.flags & C2FrameData::FLAG_CODEC_CONFIG) != 0u;
-    c2_status_t status = C2_OK;
+    const uint64_t frameIndex = work.input.ordinal.frameIndex.peeku();
+    const bool eos = (work.input.flags & C2FrameData::FLAG_END_OF_STREAM) != 0u;
+    const bool csd = (work.input.flags & C2FrameData::FLAG_CODEC_CONFIG) != 0u;
     uint32_t size = 0u;
 
-    processConfigUpdate(work->input.configUpdate);
-
-    if (!work->input.buffers.empty()) {
-        const C2ReadView view = work->input.buffers.front()
+    if (!work.input.buffers.empty()) {
+        const C2ReadView view = work.input.buffers.front()
                                     ->data()
                                     .linearBlocks()
                                     .front()
                                     .map()
                                     .get();
-        status = view.error();
+        c2_status_t status = view.error();
 
         if (status != C2_OK) {
-            reportWork(std::move(work), status);
-
             R_LOG(ERROR) << "Mapping input failed, " << status;
             return status;
         }
@@ -223,8 +215,6 @@ c2_status_t C2VendorDecComponent::onProcessInput(
         size = view.capacity();
 
         if (header->nAllocLen < size) {
-            reportWork(std::move(work), C2_CORRUPTED);
-
             R_LOG(ERROR) << "Small OMX input buffer, " << header->nAllocLen
                          << " < " << size;
             return C2_CORRUPTED;
@@ -245,8 +235,8 @@ c2_status_t C2VendorDecComponent::onProcessInput(
 
     R_LOG(DEBUG) << (fromDequeue ? "Dequeue" : "handleInputDone") << " input:"
                  << " size " << size << ", flags " << std::hex
-                 << work->input.flags << std::dec << ", ts "
-                 << work->input.ordinal.timestamp.peeku() << ", index " << index
+                 << work.input.flags << std::dec << ", ts "
+                 << work.input.ordinal.timestamp.peeku() << ", index " << index
                  << ", frameIndex " << frameIndex;
 
     header->nOffset = 0u;
@@ -254,15 +244,7 @@ c2_status_t C2VendorDecComponent::onProcessInput(
     header->nTimeStamp = FrameIndexToTs(frameIndex);
     header->nFlags = omxFlags;
 
-    if (emptyBuffer(header) != OMX_ErrorNone) {
-        reportWork(std::move(work), C2_CORRUPTED);
-
-        return C2_CORRUPTED;
-    }
-
-    pushPendingWork(frameIndex, std::move(work));
-
-    return C2_OK;
+    return emptyBuffer(header) == OMX_ErrorNone ? C2_OK : C2_CORRUPTED;
 }
 
 C2VendorBaseComponent::ExtendedBufferData

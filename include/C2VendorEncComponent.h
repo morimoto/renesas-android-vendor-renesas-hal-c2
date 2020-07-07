@@ -17,8 +17,6 @@
 #ifndef C2_VENDOR_ENC_COMPONENT_H
 #define C2_VENDOR_ENC_COMPONENT_H
 
-#include <img_gralloc1_public.h>
-
 #include "C2VendorBaseComponent.h"
 
 namespace android::hardware::media::c2::V1_0::renesas {
@@ -33,7 +31,6 @@ public:
     ~C2VendorEncComponent() final;
 
 protected:
-    bool onStateSet(OMX_STATETYPE omxState) final;
     bool onConfigure(const OMXR_Adapter& omxrAdapter) final;
     c2_status_t onProcessInput(const C2Work& work,
                                OMX_BUFFERHEADERTYPE* const header,
@@ -50,15 +47,6 @@ private:
                                     int pixelFormat,
                                     OMX_BUFFERHEADERTYPE* const header);
 
-    static void VspmCompleteCallback(unsigned long jobId,
-                                     long result,
-                                     void* userData);
-    void initVspm();
-    void deinitVspm();
-    c2_status_t vspmCopy(const void* const omxPhysAddr,
-                         const IMG_native_handle_t* const handle,
-                         OMX_COLOR_FORMATTYPE colorFormat,
-                         bool input);
     c2_status_t vspmConvertRGBAToYUVAWithEmpty(
         const void* const omxPhysAddr, const IMG_native_handle_t* const handle);
 
@@ -70,11 +58,6 @@ private:
                                    C2Config::level_t c2Level) const;
 
     const std::shared_ptr<IntfImplEnc> mIntfImpl;
-
-    void* mVspmHandle;
-    std::mutex mVspmMutex;
-    std::condition_variable mVspmCV;
-    c2_status_t mVspmResult;
 
     gralloc1_device_t* mGrallocDevice;
     GRALLOC1_PFN_LOCK mGrallocLockFunc;

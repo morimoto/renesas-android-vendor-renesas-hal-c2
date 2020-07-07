@@ -19,6 +19,7 @@
 
 #include <C2Config.h>
 #include <android-base/macros.h>
+#include <img_gralloc1_public.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -27,6 +28,8 @@
 
 #include "Mutexed.h"
 #include "OMXR_Extension_video.h"
+
+struct vspm_job_t;
 
 namespace android::hardware::media::c2::V1_0::renesas {
 
@@ -43,7 +46,8 @@ class C2VendorBaseComponent
 public:
     explicit C2VendorBaseComponent(
         const std::shared_ptr<IntfImpl>& intfImpl,
-        const std::shared_ptr<const OMXR_Core>& omxrCore);
+        const std::shared_ptr<const OMXR_Core>& omxrCore,
+        bool useVspm);
 
     DISALLOW_COPY_AND_ASSIGN(C2VendorBaseComponent);
 
@@ -253,6 +257,12 @@ protected:
     void reportError(c2_status_t result);
     void reportClonedWork(const C2Work& work);
 
+    c2_status_t vspmQueueAndWaitJob(vspm_job_t* const ipParam);
+    c2_status_t vspmCopy(const void* const omxPhysAddr,
+                         const IMG_native_handle_t* const handle,
+                         OMX_COLOR_FORMATTYPE colorFormat,
+                         bool input);
+
     std::map<uint64_t, std::unique_ptr<C2Work>> mEmptiedWorks;
 
     std::unique_ptr<C2BlockPool> mOutputBlockPool;
@@ -387,6 +397,10 @@ private:
         return res;
     }
 
+    static void VspmCompleteCallback(unsigned long jobId,
+                                     long result,
+                                     void* userData);
+
     void handleMsg(const Message& msg);
     c2_status_t handleInit();
     c2_status_t handleStart();
@@ -416,6 +430,9 @@ private:
     void pushPendingWork(uint64_t frameIndex, std::unique_ptr<C2Work> work);
     std::unique_ptr<C2Work> popPendingWork(uint64_t frameIndex);
 
+    void initVspm();
+    void deinitVspm();
+
     friend inline std::ostream& operator<<(std::ostream& os,
                                            ADAPTER_STATE state);
 
@@ -442,6 +459,11 @@ private:
     bool mFlushInProgress[PortCount];
     bool mSettingsChanged;
     bool mSeenOutputEOS;
+
+    void* mVspmHandle;
+    std::mutex mVspmMutex;
+    std::condition_variable mVspmCV;
+    c2_status_t mVspmResult;
 };
 
 static_assert(!std::is_copy_constructible<C2VendorBaseComponent>::value);

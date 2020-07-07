@@ -29,6 +29,11 @@
 #include "OMXR_Adapter.h"
 #include "OMXR_Debug.h"
 
+extern "C" {
+#include <mmngr_user_public.h>
+#include <vspm_public.h>
+}
+
 namespace android::hardware::media::c2::V1_0::renesas {
 
 #ifdef TRACK_MSG_TIMINGS
@@ -209,7 +214,8 @@ void C2VendorBaseComponent::ComponentThread::threadLoop() {
 
 C2VendorBaseComponent::C2VendorBaseComponent(
     const std::shared_ptr<IntfImpl>& intfImpl,
-    const std::shared_ptr<const OMXR_Core>& omxrCore)
+    const std::shared_ptr<const OMXR_Core>& omxrCore,
+    bool useVspm)
     : mStartForbidden{false},
       mComponentIntf{std::make_shared<C2VendorComponentInterface>(intfImpl)},
       mState{STATE::UNINITIALIZED},
@@ -219,12 +225,20 @@ C2VendorBaseComponent::C2VendorBaseComponent(
       mAdapterState{ADAPTER_STATE::UNLOADED},
       mFlushInProgress{false, false},
       mSettingsChanged{false},
-      mSeenOutputEOS{false} {
+      mSeenOutputEOS{false},
+      mVspmHandle{nullptr},
+      mVspmResult{C2_NO_INIT} {
     R_LOG(DEBUG);
+
+    if (useVspm) {
+        initVspm();
+    }
 }
 
 C2VendorBaseComponent::~C2VendorBaseComponent() {
     R_LOG(DEBUG);
+
+    deinitVspm();
 }
 
 c2_status_t C2VendorBaseComponent::setListener_vb(
@@ -514,6 +528,7 @@ bool C2VendorBaseComponent::onStateSet(OMX_STATETYPE omxState) {
             false;
         mSettingsChanged = false;
         mSeenOutputEOS = false;
+        mVspmResult = C2_NO_INIT;
         break;
     }
     default: {
@@ -742,6 +757,144 @@ void C2VendorBaseComponent::reportClonedWork(const C2Work& work) {
         ->onWorkDone_nb(shared_from_this(), MakeList(std::move(clonedWork)));
 }
 
+c2_status_t C2VendorBaseComponent::vspmQueueAndWaitJob(
+    vspm_job_t* const ipParam) {
+    constexpr char jobPriority = VSPM_PRI_MAX;
+    unsigned long jobId = 0u;
+
+    const long res = vspm_entry_job(mVspmHandle, &jobId, jobPriority, ipParam,
+                                    this, &VspmCompleteCallback);
+
+    if (res != R_VSPM_OK) {
+        R_LOG(ERROR) << "Failed to request vspm job " << jobId << ", " << res;
+        return C2_CORRUPTED;
+    }
+
+    constexpr std::chrono::duration waitTimeout =
+        std::chrono::milliseconds{100};
+    c2_status_t status = C2_NO_INIT;
+
+    {
+        std::unique_lock lock{mVspmMutex};
+
+        if (!mVspmCV.wait_for(lock, waitTimeout,
+                              [this] { return mVspmResult != C2_NO_INIT; })) {
+            R_LOG(ERROR) << "Timeout waiting for vpsm job completion";
+
+            mVspmResult = C2_CORRUPTED;
+        }
+
+        std::swap(mVspmResult, status);
+    }
+
+    return status;
+}
+
+c2_status_t C2VendorBaseComponent::vspmCopy(
+    const void* const omxPhysAddr,
+    const IMG_native_handle_t* const handle,
+    OMX_COLOR_FORMATTYPE colorFormat,
+    bool input) {
+    uint64_t physAddr = 0u;
+
+    CHECK_EQ(mmngr_get_buffer_phys_addr(handle->fd[0], &physAddr), R_MM_OK);
+
+    const unsigned short width = static_cast<unsigned short>(handle->iWidth);
+    const unsigned short height = static_cast<unsigned short>(handle->iHeight);
+    const unsigned short stride = Align64(width);
+    const unsigned short vStride = height;
+
+    const uint8_t* srcY = static_cast<const uint8_t*>(omxPhysAddr);
+    const uint8_t* srcU = srcY + stride * vStride;
+    const uint8_t* srcV = srcU + (stride >> 1) * (vStride >> 1);
+
+    const uint8_t* dstY = reinterpret_cast<const uint8_t*>(physAddr);
+    const uint8_t* dstU = dstY + stride * vStride;
+    const uint8_t* dstV = dstU + (stride >> 1) * (vStride >> 1);
+
+    if (input) {
+        std::swap(srcY, dstY);
+        std::swap(srcU, dstU);
+        std::swap(srcV, dstV);
+    }
+
+    unsigned short vspFormat = 0u;
+    unsigned short vspStrideC = 0u;
+
+    if (colorFormat == OMX_COLOR_FormatYUV420Planar) {
+        vspFormat = VSP_OUT_YUV420_PLANAR;
+        vspStrideC = stride >> 1;
+    } else if (colorFormat == OMXR_COLOR_FormatYV12) {
+        vspFormat = VSP_OUT_YUV420_PLANAR;
+        vspStrideC = stride >> 1;
+
+        std::swap(srcU, srcV);
+        std::swap(dstU, dstV);
+    } else {
+        vspFormat = VSP_OUT_YUV420_SEMI_PLANAR;
+        vspStrideC = stride;
+    }
+
+    vsp_alpha_unit_t vspAlphaParam{};
+    vspAlphaParam.swap = VSP_SWAP_NO;
+    vspAlphaParam.asel = VSP_ALPHA_NUM5;
+    vspAlphaParam.aext = VSP_AEXT_COPY;
+    vspAlphaParam.afix = std::numeric_limits<unsigned char>::max();
+
+    vsp_src_t vspSrcParam{};
+    vspSrcParam.addr = *reinterpret_cast<const unsigned int*>(&srcY);
+    vspSrcParam.addr_c0 = *reinterpret_cast<const unsigned int*>(&srcU);
+    vspSrcParam.addr_c1 = *reinterpret_cast<const unsigned int*>(&srcV);
+    vspSrcParam.stride = stride;
+    vspSrcParam.stride_c = vspStrideC;
+    vspSrcParam.width = width;
+    vspSrcParam.height = height;
+    vspSrcParam.format = vspFormat;
+    vspSrcParam.swap = VSP_SWAP_B | VSP_SWAP_W | VSP_SWAP_L | VSP_SWAP_LL;
+    vspSrcParam.pwd = VSP_LAYER_PARENT;
+    vspSrcParam.cipm = VSP_CIPM_0_HOLD;
+    vspSrcParam.cext = VSP_CEXT_EXPAN;
+    vspSrcParam.csc = VSP_CSC_OFF;
+    vspSrcParam.iturbt = VSP_ITURBT_709;
+    vspSrcParam.clrcng = VSP_FULL_COLOR;
+    vspSrcParam.vir = VSP_NO_VIR;
+    vspSrcParam.alpha = &vspAlphaParam;
+
+    vsp_dst_t vspDstParam{};
+    vspDstParam.addr = *reinterpret_cast<const unsigned int*>(&dstY);
+    vspDstParam.addr_c0 = *reinterpret_cast<const unsigned int*>(&dstU);
+    vspDstParam.addr_c1 = *reinterpret_cast<const unsigned int*>(&dstV);
+    vspDstParam.stride = stride;
+    vspDstParam.stride_c = vspStrideC;
+    vspDstParam.width = width;
+    vspDstParam.height = height;
+    vspDstParam.format = vspFormat;
+    vspDstParam.swap = VSP_SWAP_B | VSP_SWAP_W | VSP_SWAP_L | VSP_SWAP_LL;
+    vspDstParam.pxa = VSP_PAD_P;
+    vspDstParam.csc = VSP_CSC_OFF;
+    vspDstParam.iturbt = VSP_ITURBT_709;
+    vspDstParam.clrcng = VSP_FULL_COLOR;
+    vspDstParam.cbrm = VSP_CSC_ROUND_DOWN;
+    vspDstParam.abrm = VSP_CONVERSION_ROUNDDOWN;
+    vspDstParam.clmd = VSP_CLMD_NO;
+    vspDstParam.dith = VSP_DITH_OFF;
+    vspDstParam.rotation = VSP_ROT_OFF;
+
+    vsp_ctrl_t vspCtrlParam{};
+
+    vsp_start_t vspStartParam{};
+    vspStartParam.rpf_num = 1u;
+    vspStartParam.src_par[0u] = &vspSrcParam;
+    vspStartParam.dst_par = &vspDstParam;
+    vspStartParam.ctrl_par = &vspCtrlParam;
+
+    vspm_job_t ipParam;
+    ipParam.type = VSPM_TYPE_VSP_AUTO;
+    ipParam.par.vsp = &vspStartParam;
+
+    return vspmQueueAndWaitJob(&ipParam);
+}
+
 template <bool printOnError>
 bool C2VendorBaseComponent::checkState(ADAPTER_STATE expected) const {
     if (mAdapterState != expected) {
@@ -761,6 +914,21 @@ template bool C2VendorBaseComponent::checkState<true>(
 
 template bool C2VendorBaseComponent::checkState<false>(
     ADAPTER_STATE expected) const;
+
+void C2VendorBaseComponent::VspmCompleteCallback(
+    unsigned long jobId ATTRIBUTE_UNUSED, long result, void* userData) {
+    R_LOG(DEBUG) << "Result " << result;
+
+    C2VendorBaseComponent* const component =
+        static_cast<C2VendorBaseComponent*>(userData);
+
+    std::lock_guard lock{component->mVspmMutex};
+    component->mVspmResult =
+        (component->mVspmResult == C2_NO_INIT && result == R_VSPM_OK)
+        ? C2_OK
+        : C2_CORRUPTED;
+    component->mVspmCV.notify_one();
+}
 
 void C2VendorBaseComponent::handleMsg(const Message& msg) {
     c2_status_t res = C2_NO_INIT;
@@ -1469,6 +1637,22 @@ void C2VendorBaseComponent::processConfigUpdate(
     }
 
     configUpdate.clear();
+}
+
+void C2VendorBaseComponent::initVspm() {
+    vspm_init_t vspmInitParam;
+    vspmInitParam.use_ch = VSPM_EMPTY_CH;
+    vspmInitParam.mode = VSPM_MODE_MUTUAL;
+    vspmInitParam.type = VSPM_TYPE_VSP_AUTO;
+    vspmInitParam.par.vsp = nullptr;
+
+    CHECK_EQ(vspm_init_driver(&mVspmHandle, &vspmInitParam), R_VSPM_OK);
+}
+
+void C2VendorBaseComponent::deinitVspm() {
+    if (mVspmHandle != nullptr) {
+        CHECK_EQ(vspm_quit_driver(mVspmHandle), R_VSPM_OK);
+    }
 }
 
 std::ostream& operator<<(std::ostream& os,

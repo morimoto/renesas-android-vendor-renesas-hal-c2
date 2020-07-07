@@ -53,16 +53,14 @@ constexpr inline T GetValueByIndex(OMX_U32 index, const T (&arr)[size]) {
 C2VendorDecComponent::C2VendorDecComponent(
     const std::shared_ptr<IntfImplDec>& intfImpl,
     const std::shared_ptr<OMXR_Core>& omxrCore)
-    : C2VendorBaseComponent{intfImpl, omxrCore},
+    : C2VendorBaseComponent{intfImpl, omxrCore, USE_HW_COPYING},
       mIntfImpl{intfImpl},
       mCropWidth{0u},
       mCropHeight{0u},
       mBlockWidth{0u},
       mBlockHeight{0u},
       mSyntaxIndex{0u},
-      mGetVUIColorAspectsFunc{nullptr},
-      mVspmHandle{nullptr},
-      mVspmResult{C2_NO_INIT} {
+      mGetVUIColorAspectsFunc{nullptr} {
     R_LOG(DEBUG);
 
     constexpr std::tuple<OMX_VIDEO_CODINGTYPE, OMX_U32,
@@ -106,20 +104,12 @@ C2VendorDecComponent::C2VendorDecComponent(
             verifyColorAspects(args...);
         };
     }
-
-    if constexpr (USE_HW_COPYING) {
-        initVspm();
-    }
 }
 
 C2VendorDecComponent::~C2VendorDecComponent() {
     R_LOG(DEBUG);
 
     releaseComponent();
-
-    if constexpr (USE_HW_COPYING) {
-        deinitVspm();
-    }
 }
 
 bool C2VendorDecComponent::onStateSet(OMX_STATETYPE omxState) {
@@ -386,7 +376,8 @@ void C2VendorDecComponent::onOutputDone(const ExtendedBufferData& data) {
         if constexpr (USE_HW_COPYING) {
             status = vspmCopy(data.physAddr,
                               reinterpret_cast<const IMG_native_handle_t*>(
-                                  graphicBlock->handle()));
+                                  graphicBlock->handle()),
+                              OMXDecColorFormat, false);
 
             if (status != C2_OK) {
                 reportWork(std::move(work), status);
@@ -426,163 +417,6 @@ void C2VendorDecComponent::onOutputDone(const ExtendedBufferData& data) {
 
         fillBuffer(header);
     }
-}
-
-void C2VendorDecComponent::VspmCompleteCallback(
-    unsigned long jobId ATTRIBUTE_UNUSED, long result, void* userData) {
-    R_LOG(DEBUG) << "Result " << result;
-
-    C2VendorDecComponent* const component =
-        static_cast<C2VendorDecComponent*>(userData);
-
-    std::lock_guard lock{component->mVspmMutex};
-    component->mVspmResult =
-        (component->mVspmResult == C2_NO_INIT && result == R_VSPM_OK)
-        ? C2_OK
-        : C2_CORRUPTED;
-    component->mVspmCV.notify_one();
-}
-
-void C2VendorDecComponent::initVspm() {
-    vspm_init_t vspmInitParam;
-    vspmInitParam.use_ch = VSPM_EMPTY_CH;
-    vspmInitParam.mode = VSPM_MODE_MUTUAL;
-    vspmInitParam.type = VSPM_TYPE_VSP_AUTO;
-    vspmInitParam.par.vsp = nullptr;
-
-    CHECK_EQ(vspm_init_driver(&mVspmHandle, &vspmInitParam), R_VSPM_OK);
-}
-
-void C2VendorDecComponent::deinitVspm() {
-    if (mVspmHandle != nullptr) {
-        CHECK_EQ(vspm_quit_driver(mVspmHandle), R_VSPM_OK);
-    }
-}
-
-c2_status_t C2VendorDecComponent::vspmCopy(
-    const void* const omxPhysAddr, const IMG_native_handle_t* const handle) {
-    uint64_t physAddr = 0u;
-
-    CHECK_EQ(mmngr_get_buffer_phys_addr(handle->fd[0], &physAddr), R_MM_OK);
-
-    const unsigned short width = static_cast<unsigned short>(handle->iWidth);
-    const unsigned short height = static_cast<unsigned short>(handle->iHeight);
-    const unsigned short stride = Align64(width);
-    const unsigned short vStride = height;
-
-    const uint8_t* const srcY = static_cast<const uint8_t*>(omxPhysAddr);
-    const uint8_t* srcU = srcY + stride * vStride;
-    const uint8_t* srcV = srcU + (stride >> 1) * (vStride >> 1);
-
-    const uint8_t* const dstY = reinterpret_cast<const uint8_t*>(physAddr);
-    const uint8_t* dstU = dstY + stride * vStride;
-    const uint8_t* dstV = dstU + (stride >> 1) * (vStride >> 1);
-
-    unsigned short vspFormat = 0u;
-    unsigned short vspStrideC = 0u;
-
-    if constexpr (OMXDecColorFormat == OMX_COLOR_FormatYUV420Planar) {
-        vspFormat = VSP_OUT_YUV420_PLANAR;
-        vspStrideC = stride >> 1;
-    } else if constexpr (OMXDecColorFormat == OMXR_COLOR_FormatYV12) {
-        vspFormat = VSP_OUT_YUV420_PLANAR;
-        vspStrideC = stride >> 1;
-
-        std::swap(srcU, srcV);
-        std::swap(dstU, dstV);
-    } else {
-        vspFormat = VSP_OUT_YUV420_SEMI_PLANAR;
-        vspStrideC = stride;
-    }
-
-    // IN params
-    constexpr char jobPriority = VSPM_PRI_MAX;
-
-    vsp_alpha_unit_t vspAlphaParam{};
-    vspAlphaParam.swap = VSP_SWAP_NO;
-    vspAlphaParam.asel = VSP_ALPHA_NUM5;
-    vspAlphaParam.aext = VSP_AEXT_COPY;
-    vspAlphaParam.afix = std::numeric_limits<unsigned char>::max();
-
-    vsp_src_t vspSrcParam{};
-    vspSrcParam.addr = *reinterpret_cast<const unsigned int*>(&srcY);
-    vspSrcParam.addr_c0 = *reinterpret_cast<const unsigned int*>(&srcU);
-    vspSrcParam.addr_c1 = *reinterpret_cast<const unsigned int*>(&srcV);
-    vspSrcParam.stride = stride;
-    vspSrcParam.stride_c = vspStrideC;
-    vspSrcParam.width = width;
-    vspSrcParam.height = height;
-    vspSrcParam.format = vspFormat;
-    vspSrcParam.swap = VSP_SWAP_B | VSP_SWAP_W | VSP_SWAP_L | VSP_SWAP_LL;
-    vspSrcParam.pwd = VSP_LAYER_PARENT;
-    vspSrcParam.cipm = VSP_CIPM_0_HOLD;
-    vspSrcParam.cext = VSP_CEXT_EXPAN;
-    vspSrcParam.csc = VSP_CSC_OFF;
-    vspSrcParam.iturbt = VSP_ITURBT_709;
-    vspSrcParam.clrcng = VSP_FULL_COLOR;
-    vspSrcParam.vir = VSP_NO_VIR;
-    vspSrcParam.alpha = &vspAlphaParam;
-
-    vsp_dst_t vspDstParam{};
-    vspDstParam.addr = *reinterpret_cast<const unsigned int*>(&dstY);
-    vspDstParam.addr_c0 = *reinterpret_cast<const unsigned int*>(&dstU);
-    vspDstParam.addr_c1 = *reinterpret_cast<const unsigned int*>(&dstV);
-    vspDstParam.stride = stride;
-    vspDstParam.stride_c = vspStrideC;
-    vspDstParam.width = width;
-    vspDstParam.height = height;
-    vspDstParam.format = vspFormat;
-    vspDstParam.swap = VSP_SWAP_B | VSP_SWAP_W | VSP_SWAP_L | VSP_SWAP_LL;
-    vspDstParam.pxa = VSP_PAD_P;
-    vspDstParam.csc = VSP_CSC_OFF;
-    vspDstParam.iturbt = VSP_ITURBT_709;
-    vspDstParam.clrcng = VSP_FULL_COLOR;
-    vspDstParam.cbrm = VSP_CSC_ROUND_DOWN;
-    vspDstParam.abrm = VSP_CONVERSION_ROUNDDOWN;
-    vspDstParam.clmd = VSP_CLMD_NO;
-    vspDstParam.dith = VSP_DITH_OFF;
-    vspDstParam.rotation = VSP_ROT_OFF;
-
-    vsp_ctrl_t vspCtrlParam{};
-
-    vsp_start_t vspStartParam{};
-    vspStartParam.rpf_num = 1u;
-    vspStartParam.src_par[0u] = &vspSrcParam;
-    vspStartParam.dst_par = &vspDstParam;
-    vspStartParam.ctrl_par = &vspCtrlParam;
-
-    vspm_job_t ipParam;
-    ipParam.type = VSPM_TYPE_VSP_AUTO;
-    ipParam.par.vsp = &vspStartParam;
-
-    // OUT params
-    unsigned long jobId = 0u;
-
-    const long res = vspm_entry_job(mVspmHandle, &jobId, jobPriority, &ipParam,
-                                    this, &VspmCompleteCallback);
-
-    if (res != R_VSPM_OK) {
-        R_LOG(ERROR) << "Failed to request vspm job " << jobId << ", " << res;
-        return C2_CORRUPTED;
-    }
-
-    constexpr std::chrono::duration waitTimeout =
-        std::chrono::milliseconds{100};
-    c2_status_t status = C2_NO_INIT;
-
-    {
-        std::unique_lock lock{mVspmMutex};
-
-        if (!mVspmCV.wait_for(lock, waitTimeout,
-                              [this] { return mVspmResult != C2_NO_INIT; })) {
-            R_LOG(ERROR) << "Timeout waiting for vpsm job completion";
-            mVspmResult = C2_CORRUPTED;
-        }
-
-        std::swap(mVspmResult, status);
-    }
-
-    return status;
 }
 
 bool C2VendorDecComponent::forceMaxDecodeCapIfNeeded(

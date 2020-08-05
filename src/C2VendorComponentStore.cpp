@@ -31,8 +31,24 @@ namespace android::hardware::media::c2::V1_0::renesas {
 constexpr android_pixel_format_t VENDOR_PIXEL_FORMAT = HAL_PIXEL_FORMAT_YV12;
 
 // NOTE: should be consistent with "size" entry in media_codecs.xml
-constexpr uint32_t MAX_PICTURE_WIDTH = 1920u;
-constexpr uint32_t MAX_PICTURE_HEIGHT = 1088u;
+// FHD resolution
+#if defined HAL_C2_VENDOR_ENABLE_VIDEO_VP8E
+constexpr uint32_t MAX_PICTURE_WIDTH_FHD = 1920u;
+constexpr uint32_t MAX_PICTURE_HEIGHT_FHD = 1080u;
+#endif
+// 2K resolution
+#if defined HAL_C2_VENDOR_ENABLE_VIDEO_H263D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_H264D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_H265D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_MPEG4D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_VP8D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_VP9D \
+ || defined HAL_C2_VENDOR_ENABLE_VIDEO_H264E
+constexpr uint32_t MAX_PICTURE_WIDTH_2K = 1920u;
+#endif
+#if defined HAL_C2_VENDOR_ENABLE_VIDEO_VP8D
+constexpr uint32_t MAX_PICTURE_HEIGHT_2K = 1088u;
+#endif
 
 // NOTE: should be consistent with "concurrent-instances" entry in
 // media_codecs.xml
@@ -51,7 +67,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_H263,
               {128u, 96u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_H263_BASELINE,
               LEVEL_H263_40,
               {
@@ -71,7 +87,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_AVC,
               {80u, 80u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_AVC_BASELINE,
               LEVEL_AVC_5_1,
               {
@@ -110,7 +126,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_HEVC,
               {192u, 192u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_HEVC_MAIN,
               LEVEL_HEVC_MAIN_5,
               {
@@ -137,7 +153,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_MPEG4,
               {80u, 80u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_MP4V_SIMPLE,
               LEVEL_MP4V_5,
               {
@@ -158,7 +174,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_VP8,
               {80u, 80u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_HEIGHT_2K},
               PROFILE_VP9_0,
               LEVEL_VP9_4_1,
               {
@@ -177,8 +193,8 @@ C2VendorComponentStore::C2VendorComponentStore()
               OMX_VIDEO_CodingVP9,
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_VP9,
-              {192u, 208u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {192u, 192u},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_VP9_0,
               LEVEL_VP9_4_1,
               {
@@ -198,7 +214,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_AVC,
               {80u, 80u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_2K, MAX_PICTURE_WIDTH_2K},
               PROFILE_AVC_BASELINE,
               LEVEL_AVC_5_1,
               {
@@ -235,7 +251,7 @@ C2VendorComponentStore::C2VendorComponentStore()
               VENDOR_PIXEL_FORMAT,
               MEDIA_MIMETYPE_VIDEO_VP8,
               {80u, 80u},
-              {MAX_PICTURE_WIDTH, MAX_PICTURE_HEIGHT},
+              {MAX_PICTURE_WIDTH_FHD, MAX_PICTURE_HEIGHT_FHD},
               PROFILE_VP9_0,
               LEVEL_VP9_4_1,
               {

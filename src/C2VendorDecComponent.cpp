@@ -137,6 +137,17 @@ bool C2VendorDecComponent::onConfigure(const OMXR_Adapter& omxrAdapter) {
                  << pictureSize.height << ", maxPictureSize "
                  << maxPictureSize.width << "x" << maxPictureSize.height;
 
+    if (mIntfImpl->getOMXName() == "OMX.RENESAS.VIDEO.DECODER.H263" ||
+        mIntfImpl->getOMXName() == "OMX.RENESAS.VIDEO.DECODER.H264" ||
+        mIntfImpl->getOMXName() == "OMX.RENESAS.VIDEO.DECODER.H265" ||
+        mIntfImpl->getOMXName() == "OMX.RENESAS.VIDEO.DECODER.MPEG4"||
+        mIntfImpl->getOMXName() == "OMX.RENESAS.VIDEO.DECODER.VP9") {
+        if (((pictureSize.width * pictureSize.height) / 256) > 8160) {
+            R_LOG(ERROR) << "Unsuport resolution, over the maximum number of macroblocks per picture";
+            return false;
+        }
+    }
+
     const OMX_VIDEO_CODINGTYPE inputCoding = omxCodingType;
     constexpr OMX_COLOR_FORMATTYPE inputColFormat = OMX_COLOR_FormatUnused;
     constexpr OMX_VIDEO_CODINGTYPE outputCoding = OMX_VIDEO_CodingUnused;

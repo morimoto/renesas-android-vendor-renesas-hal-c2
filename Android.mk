@@ -89,6 +89,7 @@ LOCAL_CFLAGS := \
     -Wextra \
     -Werror
 
+LOCAL_CFLAGS += -DUSE_IPMMU
 LOCAL_SANITIZE := \
     signed-integer-overflow \
     unsigned-integer-overflow \

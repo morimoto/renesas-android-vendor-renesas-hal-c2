@@ -25,8 +25,8 @@
 #include "OMXR_Debug.h"
 
 extern "C" {
-#include <mmngr_user_public.h>
 #include <vspm_public.h>
+#include <mmngr_user_public.h>
 }
 
 namespace android::hardware::media::c2::V1_0::renesas {
@@ -216,7 +216,7 @@ c2_status_t C2VendorEncComponent::onProcessInput(
     uint32_t size = 0u;
 
     if (!work.input.buffers.empty()) {
-        const C2ConstGraphicBlock& graphicBlock =
+        const C2ConstGraphicBlock graphicBlock =
             work.input.buffers.front()->data().graphicBlocks().front();
         const C2GraphicView view = graphicBlock.map().get();
         status = view.error();

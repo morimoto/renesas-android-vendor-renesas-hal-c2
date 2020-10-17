@@ -530,15 +530,6 @@ c2_status_t C2VendorEncComponent::vspmConvertRGBAToYUVAWithEmpty(
     uint64_t physAddr = 0u;
 
     CHECK_EQ(mmngr_get_buffer_phys_addr(handle->fd[0u], &physAddr), R_MM_OK);
-#ifdef USE_IPMMU
-    uint32_t vAddr;
-    int ret = mmngr_ipmmu_phys_to_virt(physAddr, &vAddr);
-    if (ret != 0) {
-        R_LOG(ERROR) << "mmngr_ipmmu_phys_to_virt() returned error 0x%x" << ret;
-        return C2_CORRUPTED;
-    }
-    physAddr = vAddr;
-#endif
 
     unsigned short vspInputFormat = 0u;
     unsigned char vspInputSwap = 0u;

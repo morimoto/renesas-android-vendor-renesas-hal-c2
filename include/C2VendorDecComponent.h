@@ -17,7 +17,7 @@
 #ifndef C2_VENDOR_DEC_COMPONENT_H
 #define C2_VENDOR_DEC_COMPONENT_H
 
-#include <img_gralloc1_public.h>
+#include <img_gralloc_common_public.h>
 
 #include "C2VendorBaseComponent.h"
 #include "OMXR_Extension_vdcmn.h"

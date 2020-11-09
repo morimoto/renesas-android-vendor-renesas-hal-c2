@@ -19,7 +19,7 @@
 
 #include <C2Config.h>
 #include <android-base/macros.h>
-#include <img_gralloc1_public.h>
+#include <img_gralloc_common_public.h>
 
 #include <atomic>
 #include <condition_variable>
